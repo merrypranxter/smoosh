@@ -86,13 +86,17 @@ Preview in this environment is served on port 8080.
 
 ## Netlify
 
+A [Netlify](https://www.netlify.com/) site config is in `netlify.toml`:
+
 ```
 Build command: npm run build
 Publish directory: dist
+SPA fallback: /* → /index.html
 ```
 
-`netlify.toml` adds the SPA fallback. This app is a client-side WebGL instrument; no functions or keys required. Cross-origin isolation headers are **not** enabled (they are only needed for SharedArrayBuffer / WASM ffmpeg, which we do not ship).
+This workspace is a TanStack Start app whose production adapter is **Vercel / Nitro**. `npm run build` emits `.vercel/output`, not a static `dist/`. A Netlify production build of this exact tree will not publish a working static folder unless you switch the Nitro preset (do not do that in the Grok preview workspace — it would break the live instrument).
 
+The live instrument is this app. Source: [github.com/merrypranxter/smoosh](https://github.com/merrypranxter/smoosh).
 ## Live motion-feedback vs raw codec moshing
 
 - **Live SMOOSH** estimates optical flow on the GPU and warps a ping-pong framebuffer while both videos play. That is the product.
