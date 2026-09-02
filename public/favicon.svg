@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <rect width="32" height="32" rx="7" fill="#07060b"/>
+  <!-- cyan ghost (PIXELS channel) -->
+  <path fill="#00f0ff" d="M6 7h18v6H12v1h12v11H6v-6h12v-1H6z"/>
+  <!-- hot-pink ghost (MOTION channel) -->
+  <path fill="#ff2bd6" d="M8 9h18v6H14v1h12v11H8v-6h12v-1H8z" opacity=".85"/>
+  <!-- highlighter S lockup -->
+  <path fill="#f5ff3d" d="M7 8h18v6H13v1h12v11H7v-6h12v-1H7z"/>
+</svg>

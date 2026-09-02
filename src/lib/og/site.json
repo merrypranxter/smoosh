@@ -1,0 +1,7 @@
+{
+  "title": "SMOOSH",
+  "type": "x:game",
+  "card": "custom",
+  "description": "Live video-datamoshing instrument. Video A supplies pixels. Video B supplies motion. Both keep moving.",
+  "color": "07060b"
+}
