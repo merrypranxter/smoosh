@@ -170,7 +170,13 @@ export default defineConfig(({ command, isPreview }) => ({
     ...(command === "build" || isPreview
       ? [
           nitro({
-            preset: "vercel",
+            // Netlify builds (`NETLIFY=true`) need the `netlify` preset: it
+            // writes static assets to `dist/` (the publish dir in
+            // netlify.toml) and the SSR handler to
+            // `.netlify/functions-internal/server/`, which Netlify picks up
+            // automatically. The `vercel` preset writes `.vercel/output`
+            // instead, leaving `dist` absent and failing the deploy step.
+            preset: process.env.NETLIFY ? "netlify" : "vercel",
             // Auto-registers server/middleware/* (the PWA install page +
             // manifest + head-tag middleware). Nitro v3 defaults serverDir to
             // false, so removing this silently unwires /?install=1 on deploys.
