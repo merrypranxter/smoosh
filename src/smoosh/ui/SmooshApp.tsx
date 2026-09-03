@@ -31,6 +31,7 @@ import {
 import { cn } from "@/lib/utils";
 import { RAW_CODEC_REASON, detectCapabilities, type Capabilities } from "@/smoosh/capabilities";
 import { SmooshEngine } from "@/smoosh/engine/engine";
+import { needsSourceForMode } from "@/smoosh/engine/mode-contracts";
 import { ClipRecorder, startCamera, stopCamera, switchFacing } from "@/smoosh/media/camera";
 import { MediaHub } from "@/smoosh/media/sources";
 import {
@@ -66,6 +67,7 @@ export function SmooshApp() {
   const [booted, setBooted] = useState(false);
   const [bufferPrimed, setBufferPrimed] = useState(false);
   const [infecting, setInfecting] = useState(false);
+  const [crossWeather, setCrossWeather] = useState<"a" | "b">("b");
   const [mediaWait, setMediaWait] = useState<string | null>(null);
   const [thumbs, setThumbs] = useState<{ a: string | null; b: string | null }>({
     a: null,
@@ -95,7 +97,7 @@ export function SmooshApp() {
   useEffect(() => {
     const hub = new MediaHub();
     hubRef.current = hub;
-    const engine = new SmooshEngine(hub, setBufferPrimed);
+    const engine = new SmooshEngine(hub, setBufferPrimed, setCrossWeather);
     engineRef.current = engine;
     recorderRef.current = new OutputRecorder();
     clipRef.current = new ClipRecorder();
@@ -390,19 +392,21 @@ export function SmooshApp() {
     primeAndRun();
   }
 
-  function ignite() {
+  function playSources(
+    ids: Array<"a" | "b">,
+    options: { forcePrime: boolean; inject: boolean },
+  ) {
     const hub = hubRef.current;
     const engine = engineRef.current;
     if (!hub || !engine) return;
 
     const state = useSmoosh.getState();
     state.setPlaying(true);
-    state.patchSlot("a", { paused: false });
-    state.patchSlot("b", { paused: false });
+    for (const id of ids) state.patchSlot(id, { paused: false });
     pendingPlayRef.current.clear();
 
     const waiting: Array<"a" | "b"> = [];
-    for (const id of ["a", "b"] as const) {
+    for (const id of ids) {
       const result = hub.playWhenReady(
         id,
         () => sourceStarted(id),
@@ -426,11 +430,44 @@ export function SmooshApp() {
         : null,
     );
     engine.start();
-    const primed = engine.prime();
-    engine.pulseInject();
-    if (!primed && hub.a.kind !== "empty" && waiting.length === 0) {
-      setMediaWait("WAITING FOR SOURCE A FRAME");
+    const primed = options.forcePrime || !engine.primed ? engine.prime() : true;
+    if (options.inject) engine.pulseInject();
+    if (!primed && ids.length > 0 && waiting.length === 0) {
+      setMediaWait(
+        `WAITING FOR SOURCE ${ids.map((id) => id.toUpperCase()).join(" + ")} FRAME`,
+      );
     }
+  }
+
+  function ignite() {
+    playSources(["a", "b"], { forcePrime: true, inject: true });
+  }
+
+  function selectMode(mode: SmooshMode) {
+    const engine = engineRef.current;
+    const state = useSmoosh.getState();
+    state.setMode(mode);
+
+    const next = useSmoosh.getState();
+    const hasA = next.slotA.kind !== "empty";
+    const hasB = next.slotB.kind !== "empty";
+    let ids: Array<"a" | "b">;
+    if (mode === "self") {
+      ids = hasA ? ["a"] : hasB ? ["b"] : [];
+    } else if (mode === "freeze") {
+      ids = hasB ? ["b"] : [];
+    } else if (mode === "buffer") {
+      ids = hasB ? ["b"] : !engine?.primed && hasA ? ["a"] : [];
+    } else {
+      ids = (["a", "b"] as const).filter((id) =>
+        id === "a" ? hasA : hasB,
+      );
+    }
+
+    playSources(ids, {
+      forcePrime: mode === "self" || (mode === "cross" && (!hasA || !hasB)),
+      inject: false,
+    });
   }
 
   function beginInfect(event: PointerEvent<HTMLButtonElement>) {
@@ -464,9 +501,14 @@ export function SmooshApp() {
   }
 
   const pv = store.performanceView;
-  const needsB = store.mode !== "self";
-  const missingSource =
-    store.slotA.kind === "empty" || (needsB && store.slotB.kind === "empty");
+  const hasA = store.slotA.kind !== "empty";
+  const hasB = store.slotB.kind !== "empty";
+  const missingSource = needsSourceForMode(
+    store.mode,
+    hasA,
+    hasB,
+    bufferPrimed,
+  );
   const flowStatus = missingSource
     ? "NEED SOURCE"
     : infecting
@@ -544,13 +586,22 @@ export function SmooshApp() {
                 role="tab"
                 aria-selected={store.mode === m}
                 className={cn("mode-tab", store.mode === m && "on")}
-                onClick={() => store.setMode(m)}
+                onClick={() => selectMode(m)}
               >
                 {MODE_META[m].label}
               </button>
             ))}
           </div>
-          <p className="mode-hint">{MODE_META[store.mode].hint}</p>
+          <div className="mode-oracle">
+            <p className="mode-hint" aria-live="polite">
+              {MODE_META[store.mode].hint}
+            </p>
+            {store.mode === "cross" && hasA && hasB && (
+              <span className="weather-chip" aria-live="polite">
+                {crossWeather.toUpperCase()} IS WEATHER
+              </span>
+            )}
+          </div>
 
           <div className="slots">
             <SlotCard
@@ -653,7 +704,10 @@ export function SmooshApp() {
         </IconAction>
         <IconAction
           label={store.freezeA ? "Unfreeze A" : "Freeze A"}
-          onClick={() => store.toggleFreeze()}
+          onClick={() => {
+            store.toggleFreeze();
+            selectMode(useSmoosh.getState().mode);
+          }}
           active={store.freezeA}
         >
           <Snowflake />
@@ -680,6 +734,7 @@ export function SmooshApp() {
           presetName={presetName}
           setPresetName={setPresetName}
           refreshPresets={() => setPresets(listPresets())}
+          onSelectMode={selectMode}
         />
       )}
 
@@ -996,6 +1051,7 @@ function ControlSheet({
   presetName,
   setPresetName,
   refreshPresets,
+  onSelectMode,
 }: {
   capsMime: string;
   capsExt: string;
@@ -1003,6 +1059,7 @@ function ControlSheet({
   presetName: string;
   setPresetName: (s: string) => void;
   refreshPresets: () => void;
+  onSelectMode: (mode: SmooshMode) => void;
 }) {
   const store = useSmoosh();
   const p = store.params;
@@ -1131,7 +1188,10 @@ function ControlSheet({
                     key={b}
                     type="button"
                     className={cn("chip", store.bufferPattern === b && "on")}
-                    onClick={() => store.setBufferPattern(b)}
+                    onClick={() => {
+                      store.setBufferPattern(b);
+                      onSelectMode("buffer");
+                    }}
                   >
                     {b === "live" ? "release" : b}
                   </button>
@@ -1205,7 +1265,7 @@ function ControlSheet({
                 className="chip"
                 onClick={() => {
                   store.setParams(pr.params);
-                  store.setMode(pr.mode);
+                  onSelectMode(pr.mode);
                 }}
               >
                 {pr.name}

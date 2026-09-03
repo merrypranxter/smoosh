@@ -337,6 +337,35 @@ body {
   text-wrap: pretty;
 }
 
+.mode-oracle {
+  min-height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.weather-chip {
+  flex: 0 0 auto;
+  padding: 4px 8px;
+  border: 1px solid color-mix(in oklab, var(--color-cyan) 58%, transparent);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--color-cyan) 10%, var(--color-ink-2));
+  color: var(--color-cyan);
+  font-family: var(--font-mono);
+  font-size: 0.61rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+@media (max-width: 719px) {
+  .mode-oracle {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
 .slots {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

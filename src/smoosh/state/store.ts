@@ -31,6 +31,7 @@ export interface SmooshStore {
   audio: AudioRoute;
   playing: boolean;
   freezeA: boolean;
+  manualFreezeA: boolean;
   performanceView: boolean;
   sheetOpen: boolean;
   bufferPattern: BufferPattern;
@@ -101,6 +102,7 @@ export const useSmoosh = create<SmooshStore>((set, get) => ({
   audio: "b",
   playing: true,
   freezeA: false,
+  manualFreezeA: false,
   performanceView: false,
   sheetOpen: false,
   bufferPattern: "live",
@@ -118,16 +120,41 @@ export const useSmoosh = create<SmooshStore>((set, get) => ({
     set((s) => ({
       mode: m,
       bufferPattern: m === "buffer" ? s.bufferPattern : "live",
+      freezeA:
+        m === "freeze"
+          ? true
+          : s.mode === "freeze"
+            ? s.manualFreezeA
+            : s.freezeA,
     })),
   setQuality: (q) => set({ quality: q }),
   setAspect: (a) => set({ aspect: a }),
   setAudio: (a) => set({ audio: a }),
   setPlaying: (v) => set({ playing: v }),
-  setFreezeA: (v) => set({ freezeA: v }),
-  toggleFreeze: () => set((s) => ({ freezeA: !s.freezeA, mode: "freeze" })),
+  setFreezeA: (v) =>
+    set((s) => ({
+      freezeA: v,
+      manualFreezeA: v,
+      mode: !v && s.mode === "freeze" ? "transfer" : s.mode,
+    })),
+  toggleFreeze: () =>
+    set((s) =>
+      s.freezeA
+        ? {
+            freezeA: false,
+            manualFreezeA: false,
+            mode: s.mode === "freeze" ? "transfer" : s.mode,
+          }
+        : { freezeA: true, manualFreezeA: true, mode: "freeze" },
+    ),
   setPerformanceView: (v) => set({ performanceView: v }),
   setSheetOpen: (v) => set({ sheetOpen: v }),
-  setBufferPattern: (p) => set({ bufferPattern: p, mode: "buffer" }),
+  setBufferPattern: (p) =>
+    set((s) => ({
+      bufferPattern: p,
+      mode: "buffer",
+      freezeA: s.mode === "freeze" ? s.manualFreezeA : s.freezeA,
+    })),
   patchSlot: (id, patch) =>
     set((s) =>
       id === "a"

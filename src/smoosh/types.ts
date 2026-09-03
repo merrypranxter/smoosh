@@ -83,23 +83,23 @@ export const MODE_META: Record<
 > = {
   transfer: {
     label: "MOVING TRANSFER",
-    hint: "A supplies moving pixels. B supplies directional motion. Both stay live.",
+    hint: "A supplies the pixels. B supplies the wind. Both stay live.",
   },
   cross: {
     label: "CROSS-SMOOSH",
-    hint: "Two feedback layers contaminate each other through real motion fields.",
+    hint: "They infect each other. Watch the handoff.",
   },
   freeze: {
     label: "FREEZE & INFECT",
-    hint: "Lock A on the current frame while B keeps deforming the buffer.",
+    hint: "A is the corpse. B is the disease. Don't pause the disease.",
   },
   self: {
     label: "SELF-MOSH",
-    hint: "One source distorts its own previous frames through motion feedback.",
+    hint: "One source is paint and wind. Feed it anything.",
   },
   buffer: {
     label: "BUFFER ABUSE",
-    hint: "Stutter, reverse, and scramble a bounded ring of recent A frames.",
+    hint: "Stop reading new frames. Keep dragging the sludge.",
   },
 };
 

@@ -34,6 +34,7 @@ export interface RenderInputs {
   params: EngineParams;
   injectBoost: number;
   flowHold: boolean;
+  useHeldFlow: boolean;
 }
 
 export interface PrimeInputs {
@@ -92,6 +93,7 @@ export class SmooshRenderer {
   private captureMotion: HTMLCanvasElement;
   private capturePixelsB: HTMLCanvasElement;
   private frozenPixels: HTMLCanvasElement;
+  private bufferPixels: HTMLCanvasElement;
   private syntheticMotion: HTMLCanvasElement;
   private syntheticPixels: HTMLCanvasElement;
   hasFrozen = false;
@@ -118,6 +120,7 @@ export class SmooshRenderer {
     this.captureMotion = document.createElement("canvas");
     this.capturePixelsB = document.createElement("canvas");
     this.frozenPixels = document.createElement("canvas");
+    this.bufferPixels = document.createElement("canvas");
     this.syntheticMotion = document.createElement("canvas");
     this.syntheticPixels = document.createElement("canvas");
     this.lastPixelsCanvas = this.capturePixels;
@@ -303,6 +306,8 @@ export class SmooshRenderer {
     this.capturePixelsB.height = h;
     this.frozenPixels.width = w;
     this.frozenPixels.height = h;
+    this.bufferPixels.width = w;
+    this.bufferPixels.height = h;
     this.syntheticMotion.width = w;
     this.syntheticMotion.height = h;
     this.syntheticPixels.width = w;
@@ -477,6 +482,11 @@ export class SmooshRenderer {
     this.hasFrozen = false;
   }
 
+  lockBufferBody(): HTMLCanvasElement {
+    copy2d(this.capturePixels, this.bufferPixels);
+    return this.bufferPixels;
+  }
+
   frame(input: RenderInputs): void {
     const gl = this.gl;
     if (!gl || this.lost || this.error) return;
@@ -564,7 +574,7 @@ export class SmooshRenderer {
 
     if (!this.feedbackA || !this.flowB) return;
 
-    const moshParams = input.flowHold
+    const moshParams = input.flowHold && !input.useHeldFlow
       ? { ...input.params, motionGain: 0 }
       : input.params;
 
