@@ -29,10 +29,21 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { RAW_CODEC_REASON, detectCapabilities, type Capabilities } from "@/smoosh/capabilities";
+import {
+  RAW_CODEC_REASON,
+  detectCapabilities,
+  type Capabilities,
+} from "@/smoosh/capabilities";
+import { drawCover, mediaReady, type Drawable } from "@/smoosh/engine/draw";
 import { SmooshEngine } from "@/smoosh/engine/engine";
 import { needsSourceForMode } from "@/smoosh/engine/mode-contracts";
-import { ClipRecorder, startCamera, stopCamera, switchFacing } from "@/smoosh/media/camera";
+import {
+  ClipRecorder,
+  startCamera,
+  stopCamera,
+  switchFacing,
+} from "@/smoosh/media/camera";
+import { SEED_OPTIONS, type SeedKind } from "@/smoosh/media/demo-source";
 import { MediaHub } from "@/smoosh/media/sources";
 import {
   PROCESSION_STORAGE_KEY,
@@ -49,7 +60,12 @@ import {
   OutputRecorder,
   shareBlob,
 } from "@/smoosh/record/recorder";
-import { deletePreset, listPresets, savePreset, type Preset } from "@/smoosh/state/presets";
+import {
+  deletePreset,
+  listPresets,
+  savePreset,
+  type Preset,
+} from "@/smoosh/state/presets";
 import { useSmoosh } from "@/smoosh/state/store";
 import {
   MODE_META,
@@ -88,15 +104,18 @@ export function SmooshApp() {
   const lastPlayableStepRef = useRef<number | null>(null);
   const processionStepIdRef = useRef(0);
   const skipProcessionSaveRef = useRef(true);
+  const snapshotTimerRef = useRef<number>(0);
 
   const [booted, setBooted] = useState(false);
   const [bufferPrimed, setBufferPrimed] = useState(false);
   const [infecting, setInfecting] = useState(false);
   const [crossWeather, setCrossWeather] = useState<"a" | "b">("b");
   const [mediaWait, setMediaWait] = useState<string | null>(null);
-  const [processionSteps, setProcessionSteps] = useState<ProcessionStep[]>(
-    defaultProcession,
-  );
+  const [snapshotArmed, setSnapshotArmed] = useState(false);
+  const [compare, setCompare] = useState(false);
+  const [comparePosition, setComparePosition] = useState(50);
+  const [processionSteps, setProcessionSteps] =
+    useState<ProcessionStep[]>(defaultProcession);
   const [processionLoop, setProcessionLoop] = useState(false);
   const [processionRunning, setProcessionRunning] = useState(false);
   const [activeProcessionStep, setActiveProcessionStep] = useState<
@@ -157,7 +176,11 @@ export function SmooshApp() {
     try {
       window.localStorage.setItem(
         PROCESSION_STORAGE_KEY,
-        JSON.stringify({ version: 1, loop: processionLoop, steps: processionSteps }),
+        JSON.stringify({
+          version: 1,
+          loop: processionLoop,
+          steps: processionSteps,
+        }),
       );
     } catch {
       /* The editor still works when storage is blocked. */
@@ -195,7 +218,9 @@ export function SmooshApp() {
         useSmoosh.getState().setSourceAspect(hub.aspect("a"));
         setThumbs({ a: hub.thumbnail("a"), b: hub.thumbnail("b") });
       } catch (err) {
-        useSmoosh.getState().setToast(err instanceof Error ? err.message : String(err));
+        useSmoosh
+          .getState()
+          .setToast(err instanceof Error ? err.message : String(err));
       }
       if (cancelled) return;
       const canvas = canvasRef.current;
@@ -216,8 +241,12 @@ export function SmooshApp() {
       hub.dispose();
       stopCamera();
       if (recTimer.current) window.clearInterval(recTimer.current);
-      if (processionTimerRef.current) window.clearTimeout(processionTimerRef.current);
-      if (processionClockRef.current) window.clearInterval(processionClockRef.current);
+      if (processionTimerRef.current)
+        window.clearTimeout(processionTimerRef.current);
+      if (processionClockRef.current)
+        window.clearInterval(processionClockRef.current);
+      if (snapshotTimerRef.current)
+        window.clearTimeout(snapshotTimerRef.current);
       processionRunIdRef.current += 1;
     };
   }, []);
@@ -251,8 +280,28 @@ export function SmooshApp() {
   ]);
 
   useEffect(() => {
+    const cameraA = store.slotA.kind === "camera";
+    const cameraB = store.slotB.kind === "camera";
+    if (!cameraA && !cameraB) return;
+    const refresh = () => {
+      const hub = hubRef.current;
+      if (!hub) return;
+      setThumbs((current) => ({
+        a: cameraA ? (hub.thumbnail("a") ?? current.a) : current.a,
+        b: cameraB ? (hub.thumbnail("b") ?? current.b) : current.b,
+      }));
+    };
+    refresh();
+    const timer = window.setInterval(refresh, 500);
+    return () => window.clearInterval(timer);
+  }, [store.slotA.kind, store.slotB.kind]);
+
+  useEffect(() => {
     if (!store.toast) return;
-    const t = window.setTimeout(() => useSmoosh.getState().setToast(null), 4200);
+    const t = window.setTimeout(
+      () => useSmoosh.getState().setToast(null),
+      4200,
+    );
     return () => window.clearTimeout(t);
   }, [store.toast]);
 
@@ -281,7 +330,9 @@ export function SmooshApp() {
       useSmoosh.getState().patchSlot(id, {
         error: err instanceof Error ? err.message : String(err),
       });
-      useSmoosh.getState().setToast(err instanceof Error ? err.message : String(err));
+      useSmoosh
+        .getState()
+        .setToast(err instanceof Error ? err.message : String(err));
     }
   }
 
@@ -300,20 +351,50 @@ export function SmooshApp() {
     void ignite();
   }
 
+  async function loadSeed(id: "a" | "b", seed: SeedKind) {
+    const hub = hubRef.current;
+    if (!hub) return;
+    try {
+      await hub.loadSeed(id, seed);
+      const fileName = `seed-${seed === "pixels" ? "grid" : seed}`;
+      useSmoosh.getState().patchSlot(id, {
+        kind: "demo",
+        fileName,
+        error: null,
+        paused: false,
+      });
+      if (id === "a") useSmoosh.getState().setSourceAspect(hub.aspect("a"));
+      setThumbs((current) => ({ ...current, [id]: hub.thumbnail(id) }));
+      useSmoosh.getState().setPlaying(true);
+      playSources([id], {
+        forcePrime: engineRef.current?.running ?? false,
+        inject: false,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      useSmoosh.getState().patchSlot(id, { error: message });
+      useSmoosh.getState().setToast(message);
+    }
+  }
+
   async function openCamera(id: "a" | "b") {
     if (!caps.camera) {
-      useSmoosh.getState().setToast(
-        "Camera API is missing. Open SMOOSH on HTTPS in Safari or Chrome, then allow the camera.",
-      );
+      useSmoosh
+        .getState()
+        .setToast(
+          "Camera API is missing. Open SMOOSH on HTTPS in Safari or Chrome, then allow the camera.",
+        );
       return;
     }
     const hub = hubRef.current;
     if (!hub) return;
     const other = id === "a" ? store.slotB : store.slotA;
     if (other.kind === "camera") {
-      useSmoosh.getState().setToast(
-        "Only one live camera can run at a time. It will move to this slot.",
-      );
+      useSmoosh
+        .getState()
+        .setToast(
+          "Only one live camera can run at a time. It will move to this slot.",
+        );
     }
     try {
       const facing = (id === "a" ? store.slotA : store.slotB).facing;
@@ -322,7 +403,11 @@ export function SmooshApp() {
       const otherId = id === "a" ? "b" : "a";
       if ((otherId === "a" ? hub.a : hub.b).kind !== "camera") {
         useSmoosh.getState().patchSlot(otherId, {
-          kind: useSmoosh.getState()[otherId === "a" ? "slotA" : "slotB"].kind === "camera" ? "empty" : useSmoosh.getState()[otherId === "a" ? "slotA" : "slotB"].kind,
+          kind:
+            useSmoosh.getState()[otherId === "a" ? "slotA" : "slotB"].kind ===
+            "camera"
+              ? "empty"
+              : useSmoosh.getState()[otherId === "a" ? "slotA" : "slotB"].kind,
         });
       }
       useSmoosh.getState().patchSlot(id, {
@@ -342,7 +427,9 @@ export function SmooshApp() {
       useSmoosh.getState().setPlaying(true);
       void ignite();
     } catch (err) {
-      useSmoosh.getState().setToast(err instanceof Error ? err.message : String(err));
+      const message = err instanceof Error ? err.message : String(err);
+      useSmoosh.getState().patchSlot(id, { error: message });
+      useSmoosh.getState().setToast(message);
     }
   }
 
@@ -354,9 +441,14 @@ export function SmooshApp() {
       setClipSlot(id);
       setClipMs(0);
       const t0 = performance.now();
-      recTimer.current = window.setInterval(() => setClipMs(performance.now() - t0), 200);
+      recTimer.current = window.setInterval(
+        () => setClipMs(performance.now() - t0),
+        200,
+      );
     } catch (err) {
-      useSmoosh.getState().setToast(err instanceof Error ? err.message : String(err));
+      useSmoosh
+        .getState()
+        .setToast(err instanceof Error ? err.message : String(err));
     }
   }
 
@@ -364,11 +456,15 @@ export function SmooshApp() {
     if (!clipSlot || !clipRef.current) return;
     try {
       const { blob, ext } = await clipRef.current.stop();
-      const file = new File([blob], `smoosh-clip-${clipSlot}.${ext}`, { type: blob.type });
+      const file = new File([blob], `smoosh-clip-${clipSlot}.${ext}`, {
+        type: blob.type,
+      });
       await onFile(clipSlot, file);
       stopCamera();
     } catch (err) {
-      useSmoosh.getState().setToast(err instanceof Error ? err.message : String(err));
+      useSmoosh
+        .getState()
+        .setToast(err instanceof Error ? err.message : String(err));
     }
     if (recTimer.current) window.clearInterval(recTimer.current);
     setClipSlot(null);
@@ -386,11 +482,61 @@ export function SmooshApp() {
   }
 
   function swap() {
-    hubRef.current?.swap();
-    useSmoosh.getState().swapSlotsMeta();
     const hub = hubRef.current;
+    const cameraWasOnB = hub?.b.kind === "camera";
+    if (cameraWasOnB) {
+      hub?.clear("b");
+      useSmoosh.getState().patchSlot("b", {
+        kind: "empty",
+        fileName: null,
+        duration: 0,
+        error: null,
+      });
+    }
+    hub?.swap();
+    useSmoosh.getState().swapSlotsMeta();
     if (hub) useSmoosh.getState().setSourceAspect(hub.aspect("a"));
-    setThumbs((current) => ({ a: current.b, b: current.a }));
+    setThumbs((current) => ({
+      a: cameraWasOnB ? null : current.b,
+      b: current.a,
+    }));
+  }
+
+  async function snapToA() {
+    const hub = hubRef.current;
+    const canvas = canvasRef.current;
+    const engine = engineRef.current;
+    if (!hub || !canvas || !engine || !engine.primed) {
+      useSmoosh
+        .getState()
+        .setToast("Prime the buffer before taking a snapshot.");
+      return;
+    }
+    try {
+      await hub.loadSnapshot("a", canvas);
+      useSmoosh.getState().patchSlot("a", {
+        kind: "image",
+        fileName: "smoosh-snapshot.png",
+        duration: 0,
+        error: null,
+        paused: false,
+      });
+      useSmoosh.getState().setSourceAspect(hub.aspect("a"));
+      setThumbs((current) => ({ ...current, a: hub.thumbnail("a") }));
+      setSnapshotArmed(true);
+      if (snapshotTimerRef.current)
+        window.clearTimeout(snapshotTimerRef.current);
+      snapshotTimerRef.current = window.setTimeout(
+        () => setSnapshotArmed(false),
+        1100,
+      );
+      engine.prime();
+      engine.start();
+    } catch (err) {
+      useSmoosh
+        .getState()
+        .setToast(err instanceof Error ? err.message : String(err));
+    }
   }
 
   async function toggleRecord() {
@@ -429,8 +575,8 @@ export function SmooshApp() {
           ? hub.b.video
           : null,
         hub && (hub.a.kind === "camera" || hub.b.kind === "camera")
-          ? ((hub.a.video.srcObject as MediaStream | null) ||
-              (hub.b.video.srcObject as MediaStream | null))
+          ? (hub.a.video.srcObject as MediaStream | null) ||
+              (hub.b.video.srcObject as MediaStream | null)
           : null,
       );
       rec.setRoute(store.audio);
@@ -444,10 +590,14 @@ export function SmooshApp() {
       recTimer.current = window.setInterval(() => {
         const r = recorderRef.current;
         if (!r?.recording) return;
-        useSmoosh.getState().setRec({ durationMs: performance.now() - r.startedAt });
+        useSmoosh
+          .getState()
+          .setRec({ durationMs: performance.now() - r.startedAt });
       }, 200);
     } catch (err) {
-      useSmoosh.getState().setToast(err instanceof Error ? err.message : String(err));
+      useSmoosh
+        .getState()
+        .setToast(err instanceof Error ? err.message : String(err));
     }
   }
 
@@ -460,8 +610,12 @@ export function SmooshApp() {
 
   function sourceStarted(id: "a" | "b", shouldPrime: boolean) {
     pendingPlayRef.current.delete(id);
-    const remaining = [...pendingPlayRef.current].map((slot) => slot.toUpperCase());
-    setMediaWait(remaining.length ? `WAITING FOR ${remaining.join(" + ")}` : null);
+    const remaining = [...pendingPlayRef.current].map((slot) =>
+      slot.toUpperCase(),
+    );
+    setMediaWait(
+      remaining.length ? `WAITING FOR ${remaining.join(" + ")}` : null,
+    );
     if (shouldPrime) primeAndRun();
     else engineRef.current?.start();
   }
@@ -488,9 +642,11 @@ export function SmooshApp() {
         (error) => {
           pendingPlayRef.current.delete(id);
           setMediaWait(`SOURCE ${id.toUpperCase()} COULD NOT PLAY`);
-          useSmoosh.getState().setToast(
-            `Source ${id.toUpperCase()} did not start: ${error.message}`,
-          );
+          useSmoosh
+            .getState()
+            .setToast(
+              `Source ${id.toUpperCase()} did not start: ${error.message}`,
+            );
         },
       );
       if (result === "waiting") {
@@ -544,9 +700,7 @@ export function SmooshApp() {
     } else if (mode === "hold") {
       ids = hasB ? ["b"] : hasA ? ["a"] : [];
     } else {
-      ids = (["a", "b"] as const).filter((id) =>
-        id === "a" ? hasA : hasB,
-      );
+      ids = (["a", "b"] as const).filter((id) => (id === "a" ? hasA : hasB));
     }
 
     playSources(ids, {
@@ -601,7 +755,9 @@ export function SmooshApp() {
       window.clearInterval(processionClockRef.current);
     }
     processionClockRef.current = window.setInterval(() => {
-      setProcessionRemaining(Math.max(0, (deadline - performance.now()) / 1000));
+      setProcessionRemaining(
+        Math.max(0, (deadline - performance.now()) / 1000),
+      );
     }, 100);
   }
 
@@ -638,7 +794,9 @@ export function SmooshApp() {
     if (missing) {
       if (skipped + 1 >= steps.length) {
         stopProcession();
-        useSmoosh.getState().setToast("No procession step has the sources it needs.");
+        useSmoosh
+          .getState()
+          .setToast("No procession step has the sources it needs.");
         return;
       }
       setProcessionNeedSource(true);
@@ -775,21 +933,28 @@ export function SmooshApp() {
     hasB,
     bufferPrimed,
   );
-  const flowStatus = processionNeedSource
-    ? "NEED SOURCE"
-    : missingSource
-    ? "NEED SOURCE"
-    : infecting
-      ? "INFECTING"
-      : bufferPrimed && booted && store.playing && !mediaWait
-        ? "FLOW LOCKED"
-        : "BUFFER EMPTY";
+  const flowStatus = snapshotArmed
+    ? "SNAPSHOT ARMED"
+    : processionNeedSource
+      ? "NEED SOURCE"
+      : missingSource
+        ? "NEED SOURCE"
+        : infecting
+          ? "INFECTING"
+          : bufferPrimed && booted && store.playing && !mediaWait
+            ? "FLOW LOCKED"
+            : "BUFFER EMPTY";
 
   return (
     <div className="app-shell">
       <div className="noise" aria-hidden />
       <header className="topbar">
-        <button type="button" className="logo" onClick={() => setHelp(true)} aria-label="About SMOOSH">
+        <button
+          type="button"
+          className="logo"
+          onClick={() => setHelp(true)}
+          aria-label="About SMOOSH"
+        >
           <span className="logo-glitch" data-text="SMOOSH">
             SMOOSH
           </span>
@@ -808,15 +973,25 @@ export function SmooshApp() {
       </header>
 
       <div className="stage-wrap">
-        <div
-          className="stage"
-          style={{ aspectRatio: `${aspect}` }}
-        >
+        <div className="stage" style={{ aspectRatio: `${aspect}` }}>
           <canvas
             ref={canvasRef}
             className="stage-canvas"
             aria-label="SMOOSH output"
           />
+          {compare && (
+            <CompareOverlay
+              source={
+                hubRef.current?.drawable("a") ??
+                engineRef.current?.renderer?.lastPixelsCanvas ??
+                null
+              }
+              position={comparePosition}
+              fill={store.slotA.fill}
+              mirror={store.slotA.mirror}
+              onChange={setComparePosition}
+            />
+          )}
           <div className="stage-frame" aria-hidden />
           {store.rec.active && (
             <div className="rec-chip">
@@ -825,17 +1000,37 @@ export function SmooshApp() {
             </div>
           )}
           <div className="mode-chip">{MODE_META[store.mode].label}</div>
-          {store.engineError && <div className="stage-error">{store.engineError}</div>}
+          {store.engineError && (
+            <div className="stage-error">{store.engineError}</div>
+          )}
           {!caps.webgl2 && (
             <div className="stage-error">
-              WebGL2 is unavailable, so the live mosh engine cannot run in this browser.
+              WebGL2 is unavailable, so the live mosh engine cannot run in this
+              browser.
             </div>
           )}
         </div>
       </div>
 
+      <div className="stage-actions" aria-label="Canvas actions">
+        <button type="button" onClick={() => void snapToA()}>
+          SNAP TO A
+        </button>
+        <button
+          type="button"
+          className={cn(compare && "on")}
+          aria-pressed={compare}
+          onClick={() => setCompare((current) => !current)}
+        >
+          COMPARE
+        </button>
+      </div>
+
       <div
-        className={cn("flow-status", flowStatus.toLowerCase().replace(/\s+/g, "-"))}
+        className={cn(
+          "flow-status",
+          flowStatus.toLowerCase().replace(/\s+/g, "-"),
+        )}
         role="status"
         aria-live="polite"
       >
@@ -900,20 +1095,25 @@ export function SmooshApp() {
               thumbnail={thumbs.a}
               onUpload={() => fileARef.current?.click()}
               onDemo={() => void loadDemo("a")}
+              onSeed={(seed) => void loadSeed("a", seed)}
               onCamera={() => void openCamera("a")}
+              cameraLabel="Live"
               onClip={() => void beginClip("a")}
               onClear={() => clearSlot("a")}
               onPause={() =>
                 store.patchSlot("a", { paused: !store.slotA.paused })
               }
-              onMirror={() => store.patchSlot("a", { mirror: !store.slotA.mirror })}
+              onMirror={() =>
+                store.patchSlot("a", { mirror: !store.slotA.mirror })
+              }
               onFill={() =>
                 store.patchSlot("a", {
                   fill: store.slotA.fill === "fill" ? "fit" : "fill",
                 })
               }
               onFlipCamera={async () => {
-                const next = store.slotA.facing === "user" ? "environment" : "user";
+                const next =
+                  store.slotA.facing === "user" ? "environment" : "user";
                 store.patchSlot("a", { facing: next, mirror: next === "user" });
                 if (store.slotA.kind === "camera") {
                   const h = await switchFacing(next);
@@ -930,20 +1130,25 @@ export function SmooshApp() {
               thumbnail={thumbs.b}
               onUpload={() => fileBRef.current?.click()}
               onDemo={() => void loadDemo("b")}
+              onSeed={(seed) => void loadSeed("b", seed)}
               onCamera={() => void openCamera("b")}
+              cameraLabel="CAM"
               onClip={() => void beginClip("b")}
               onClear={() => clearSlot("b")}
               onPause={() =>
                 store.patchSlot("b", { paused: !store.slotB.paused })
               }
-              onMirror={() => store.patchSlot("b", { mirror: !store.slotB.mirror })}
+              onMirror={() =>
+                store.patchSlot("b", { mirror: !store.slotB.mirror })
+              }
               onFill={() =>
                 store.patchSlot("b", {
                   fill: store.slotB.fill === "fill" ? "fit" : "fill",
                 })
               }
               onFlipCamera={async () => {
-                const next = store.slotB.facing === "user" ? "environment" : "user";
+                const next =
+                  store.slotB.facing === "user" ? "environment" : "user";
                 store.patchSlot("b", { facing: next, mirror: next === "user" });
                 if (store.slotB.kind === "camera") {
                   const h = await switchFacing(next);
@@ -1007,7 +1212,10 @@ export function SmooshApp() {
         <IconAction label="Reseed" onClick={() => engineRef.current?.reseed()}>
           <Sparkles />
         </IconAction>
-        <IconAction label="Clean" onClick={() => engineRef.current?.pulseClean()}>
+        <IconAction
+          label="Clean"
+          onClick={() => engineRef.current?.pulseClean()}
+        >
           <Droplets />
         </IconAction>
         <IconAction
@@ -1064,10 +1272,14 @@ export function SmooshApp() {
           <div className="modal-card">
             <h2>RECORD CLIP · {clipSlot.toUpperCase()}</h2>
             <p>
-              Recording from the live camera into slot {clipSlot.toUpperCase()}. Duration{" "}
-              {formatMs(clipMs)}.
+              Recording from the live camera into slot {clipSlot.toUpperCase()}.
+              Duration {formatMs(clipMs)}.
             </p>
-            <button type="button" className="hit-btn" onClick={() => void endClip()}>
+            <button
+              type="button"
+              className="hit-btn"
+              onClick={() => void endClip()}
+            >
               STOP & LOAD
             </button>
           </div>
@@ -1079,10 +1291,20 @@ export function SmooshApp() {
           <div className="modal-card">
             <div className="modal-head">
               <h2>TAKE</h2>
-              <button type="button" className="icon-btn" onClick={() => {
-                if (store.rec.previewUrl) URL.revokeObjectURL(store.rec.previewUrl);
-                store.setRec({ previewUrl: null, blob: null, fileName: null });
-              }} aria-label="Close preview">
+              <button
+                type="button"
+                className="icon-btn"
+                onClick={() => {
+                  if (store.rec.previewUrl)
+                    URL.revokeObjectURL(store.rec.previewUrl);
+                  store.setRec({
+                    previewUrl: null,
+                    blob: null,
+                    fileName: null,
+                  });
+                }}
+                aria-label="Close preview"
+              >
                 <X />
               </button>
             </div>
@@ -1115,7 +1337,9 @@ export function SmooshApp() {
                 className="text-btn"
                 onClick={() => {
                   if (store.rec.blob && store.rec.fileName) {
-                    void shareBlob(store.rec.blob, store.rec.fileName).catch(() => undefined);
+                    void shareBlob(store.rec.blob, store.rec.fileName).catch(
+                      () => undefined,
+                    );
                   }
                 }}
               >
@@ -1177,7 +1401,11 @@ function ProcessionStrip({
   return (
     <section className="procession" aria-label="Procession mode succession">
       <strong className="procession-title">PROCESSION</strong>
-      <div ref={trackRef} className="procession-track" aria-label="Procession steps">
+      <div
+        ref={trackRef}
+        className="procession-track"
+        aria-label="Procession steps"
+      >
         {steps.map((step, index) => {
           const active = activeIndex === index;
           return (
@@ -1198,12 +1426,20 @@ function ProcessionStrip({
                 dragFromRef.current = null;
               }}
             >
-              <span className="procession-handle" aria-hidden title="Drag to reorder">
+              <span
+                className="procession-handle"
+                aria-hidden
+                title="Drag to reorder"
+              >
                 ⠿
               </span>
-              <span className="procession-mode">{MODE_META[step.mode].label}</span>
+              <span className="procession-mode">
+                {MODE_META[step.mode].label}
+              </span>
               <label className="procession-duration">
-                <span className="sr-only">Step {index + 1} duration in seconds</span>
+                <span className="sr-only">
+                  Step {index + 1} duration in seconds
+                </span>
                 <input
                   aria-label={`Step ${index + 1} duration in seconds`}
                   type="number"
@@ -1257,13 +1493,23 @@ function ProcessionStrip({
             </article>
           );
         })}
-        {steps.length === 0 && <span className="procession-empty">NO STEPS YET</span>}
+        {steps.length === 0 && (
+          <span className="procession-empty">NO STEPS YET</span>
+        )}
       </div>
       <div className="procession-controls">
-        <button type="button" onClick={onPlay} disabled={running || steps.length === 0}>
+        <button
+          type="button"
+          onClick={onPlay}
+          disabled={running || steps.length === 0}
+        >
           PLAY PROCESSION
         </button>
-        <button type="button" onClick={onStop} disabled={!running && activeIndex === null}>
+        <button
+          type="button"
+          onClick={onStop}
+          disabled={!running && activeIndex === null}
+        >
           STOP PROCESSION
         </button>
         <button
@@ -1314,6 +1560,75 @@ function IconAction({
   );
 }
 
+function CompareOverlay({
+  source,
+  position,
+  fill,
+  mirror,
+  onChange,
+}: {
+  source: Drawable | null;
+  position: number;
+  fill: "fill" | "fit";
+  mirror: boolean;
+  onChange: (position: number) => void;
+}) {
+  const rawCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    let frame = 0;
+    let lastDraw = 0;
+    const draw = (now: number) => {
+      const canvas = rawCanvasRef.current;
+      if (canvas && source && mediaReady(source) && now - lastDraw >= 30) {
+        const width = Math.max(
+          2,
+          Math.min(960, Math.round(canvas.clientWidth)),
+        );
+        const height = Math.max(
+          2,
+          Math.min(960, Math.round(canvas.clientHeight)),
+        );
+        if (canvas.width !== width) canvas.width = width;
+        if (canvas.height !== height) canvas.height = height;
+        const context = canvas.getContext("2d", { alpha: false });
+        if (context) drawCover(context, source, width, height, fill, mirror);
+        lastDraw = now;
+      }
+      frame = window.requestAnimationFrame(draw);
+    };
+    frame = window.requestAnimationFrame(draw);
+    return () => window.cancelAnimationFrame(frame);
+  }, [fill, mirror, source]);
+
+  return (
+    <div className="compare-overlay">
+      <canvas
+        ref={rawCanvasRef}
+        className="compare-raw"
+        style={{ clipPath: `inset(0 ${100 - position}% 0 0)` }}
+        aria-hidden
+      />
+      <div
+        className="compare-handle"
+        style={{ left: `${position}%` }}
+        aria-hidden
+      />
+      <span className="compare-label raw">RAW</span>
+      <span className="compare-label smashed">SMASHED</span>
+      <input
+        className="compare-range"
+        type="range"
+        min={0}
+        max={100}
+        value={position}
+        aria-label="Raw versus smashed comparison position"
+        onChange={(event) => onChange(Number(event.target.value))}
+      />
+    </div>
+  );
+}
+
 function SlotCard({
   title,
   tone,
@@ -1321,7 +1636,9 @@ function SlotCard({
   thumbnail,
   onUpload,
   onDemo,
+  onSeed,
   onCamera,
+  cameraLabel,
   onClip,
   onClear,
   onPause,
@@ -1337,7 +1654,9 @@ function SlotCard({
   thumbnail: string | null;
   onUpload: () => void;
   onDemo: () => void;
+  onSeed: (seed: SeedKind) => void;
   onCamera: () => void;
+  cameraLabel: string;
   onClip: () => void;
   onClear: () => void;
   onPause: () => void;
@@ -1349,7 +1668,11 @@ function SlotCard({
 }) {
   return (
     <section className={cn("slot", tone)}>
-      <button type="button" className="slot-head" onClick={() => setOpen(!open)}>
+      <button
+        type="button"
+        className="slot-head"
+        onClick={() => setOpen(!open)}
+      >
         <span className="slot-thumb" aria-hidden>
           {thumbnail ? <img src={thumbnail} alt="" /> : <Aperture />}
         </span>
@@ -1359,10 +1682,13 @@ function SlotCard({
             {shortSourceName(slot.fileName)}
           </em>
         </span>
-        <span className="slot-caret" aria-hidden>{open ? "−" : "+"}</span>
+        <span className="slot-caret" aria-hidden>
+          {open ? "−" : "+"}
+        </span>
       </button>
       <div className="slot-status">
-        {slot.kind} {slot.paused ? "· paused" : ""} {slot.error ? `· ${slot.error}` : ""}
+        {slot.kind} {slot.paused ? "· paused" : ""}{" "}
+        {slot.error ? `· ${slot.error}` : ""}
       </div>
       {open && (
         <div className="slot-actions">
@@ -1373,7 +1699,7 @@ function SlotCard({
             <Aperture /> Demo
           </button>
           <button type="button" onClick={onCamera}>
-            <Camera /> Live
+            <Camera /> {cameraLabel}
           </button>
           <button type="button" onClick={onClip}>
             <Circle /> Clip
@@ -1401,7 +1727,9 @@ function SlotCard({
                   type="checkbox"
                   checked={slot.loop}
                   onChange={(e) =>
-                    useSmoosh.getState().patchSlot(slot.id, { loop: e.target.checked })
+                    useSmoosh
+                      .getState()
+                      .patchSlot(slot.id, { loop: e.target.checked })
                   }
                 />
               </label>
@@ -1437,6 +1765,19 @@ function SlotCard({
               </label>
             </>
           )}
+          <div className="slot-seeds" aria-label={`${title} seed pack`}>
+            <strong>SEEDS</strong>
+            {SEED_OPTIONS.map((seed) => (
+              <button
+                type="button"
+                key={seed.kind}
+                title={`Load ${seed.label} into ${title}`}
+                onClick={() => onSeed(seed.kind)}
+              >
+                {seed.label}
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </section>
@@ -1451,7 +1792,9 @@ function QuickControls() {
   return (
     <section className="quick-controls" aria-label="Core mosh controls">
       <label className="quick-knob">
-        <span>FLOW SCALE <b>{p.motionGain.toFixed(2)}</b></span>
+        <span>
+          FLOW SCALE <b>{p.motionGain.toFixed(2)}</b>
+        </span>
         <input
           aria-label="Flow scale"
           type="range"
@@ -1459,11 +1802,15 @@ function QuickControls() {
           max={3.5}
           step={0.01}
           value={p.motionGain}
-          onChange={(event) => store.setParam("motionGain", Number(event.target.value))}
+          onChange={(event) =>
+            store.setParam("motionGain", Number(event.target.value))
+          }
         />
       </label>
       <label className="quick-knob">
-        <span>DECAY <b>{Math.round(decay * 100)}%</b></span>
+        <span>
+          DECAY <b>{Math.round(decay * 100)}%</b>
+        </span>
         <input
           aria-label="Decay"
           type="range"
@@ -1477,7 +1824,9 @@ function QuickControls() {
         />
       </label>
       <label className="quick-knob">
-        <span>MIX <b>{Math.round(p.mix * 100)}%</b></span>
+        <span>
+          MIX <b>{Math.round(p.mix * 100)}%</b>
+        </span>
         <input
           aria-label="Mix"
           type="range"
@@ -1485,7 +1834,9 @@ function QuickControls() {
           max={1}
           step={0.01}
           value={p.mix}
-          onChange={(event) => store.setParam("mix", Number(event.target.value))}
+          onChange={(event) =>
+            store.setParam("mix", Number(event.target.value))
+          }
         />
       </label>
     </section>
@@ -1630,60 +1981,86 @@ function ControlSheet({
 
           {store.mode === "buffer" && (
             <div className="chip-row">
-              {(["live", "hold", "forward", "backward", "pingpong", "random"] as BufferPattern[]).map(
-                (b) => (
-                  <button
-                    key={b}
-                    type="button"
-                    className={cn("chip", store.bufferPattern === b && "on")}
-                    onClick={() => {
-                      store.setBufferPattern(b);
-                      onSelectMode("buffer");
-                    }}
-                  >
-                    {b === "live" ? "release" : b}
-                  </button>
-                ),
-              )}
+              {(
+                [
+                  "live",
+                  "hold",
+                  "forward",
+                  "backward",
+                  "pingpong",
+                  "random",
+                ] as BufferPattern[]
+              ).map((b) => (
+                <button
+                  key={b}
+                  type="button"
+                  className={cn("chip", store.bufferPattern === b && "on")}
+                  onClick={() => {
+                    store.setBufferPattern(b);
+                    onSelectMode("buffer");
+                  }}
+                >
+                  {b === "live" ? "release" : b}
+                </button>
+              ))}
             </div>
           )}
 
           <div className="row-btns">
-            <button type="button" className="text-btn" onClick={() => store.resetParams()}>
+            <button
+              type="button"
+              className="text-btn"
+              onClick={() => store.resetParams()}
+            >
               Reset
             </button>
-            <button type="button" className="text-btn" onClick={() => store.randomizeParams()}>
+            <button
+              type="button"
+              className="text-btn"
+              onClick={() => store.randomizeParams()}
+            >
               Randomize
             </button>
           </div>
 
           <h3>OUTPUT</h3>
           <div className="chip-row">
-            {(["portrait", "square", "landscape", "original"] as AspectPreset[]).map((a) => (
+            {(
+              ["portrait", "square", "landscape", "original"] as AspectPreset[]
+            ).map((a) => (
               <button
                 key={a}
                 type="button"
                 className={cn("chip", store.aspect === a && "on")}
                 onClick={() => store.setAspect(a)}
               >
-                {a === "portrait" ? "9:16" : a === "square" ? "1:1" : a === "landscape" ? "16:9" : "source"}
+                {a === "portrait"
+                  ? "9:16"
+                  : a === "square"
+                    ? "1:1"
+                    : a === "landscape"
+                      ? "16:9"
+                      : "source"}
               </button>
             ))}
           </div>
           <div className="chip-row">
-            {(["performance", "balanced", "high"] as QualityLevel[]).map((q) => (
-              <button
-                key={q}
-                type="button"
-                className={cn("chip", store.quality === q && "on")}
-                onClick={() => store.setQuality(q)}
-              >
-                {q}
-              </button>
-            ))}
+            {(["performance", "balanced", "high"] as QualityLevel[]).map(
+              (q) => (
+                <button
+                  key={q}
+                  type="button"
+                  className={cn("chip", store.quality === q && "on")}
+                  onClick={() => store.setQuality(q)}
+                >
+                  {q}
+                </button>
+              ),
+            )}
           </div>
           <p className="fine">
-            High quality allocates larger framebuffers. Phones default to Performance so they do not cook.
+            High quality allocates larger framebuffers. Phones default to
+            Performance so they do not cook.
           </p>
 
           <h3>AUDIO</h3>
@@ -1700,7 +2077,8 @@ function ControlSheet({
             ))}
           </div>
           <p className="fine">
-            Record format here: {capsExt === "none" ? "not available" : capsExt.toUpperCase()}
+            Record format here:{" "}
+            {capsExt === "none" ? "not available" : capsExt.toUpperCase()}
             {capsMime ? ` (${capsMime})` : ""}. WebM is never labeled as MP4.
           </p>
 
@@ -1808,12 +2186,18 @@ function HelpOverlay({ onClose }: { onClose: () => void }) {
       <div className="modal-card">
         <div className="modal-head">
           <h2>SMOOSH</h2>
-          <button type="button" className="icon-btn" onClick={onClose} aria-label="Close">
+          <button
+            type="button"
+            className="icon-btn"
+            onClick={onClose}
+            aria-label="Close"
+          >
             <X />
           </button>
         </div>
         <p>
-          Two videos keep moving. <b>A</b> is pixels — color, texture, the picture.
+          Two videos keep moving. <b>A</b> is pixels — color, texture, the
+          picture.
           <b> B</b> is motion — a Lucas–Kanade optical-flow field that drags A’s
           persistent feedback buffer around.
         </p>
@@ -1822,8 +2206,8 @@ function HelpOverlay({ onClose }: { onClose: () => void }) {
           leftover A imagery is pulled left in that region.
         </p>
         <p>
-          Everything stays on this device. Nothing is uploaded. Camera permission
-          is only requested when you tap Live or Clip.
+          Everything stays on this device. Nothing is uploaded. Camera
+          permission is only requested when you tap Live or Clip.
         </p>
         <button type="button" className="hit-btn" onClick={onClose}>
           CLOSE

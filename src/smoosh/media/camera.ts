@@ -10,7 +10,9 @@ function emit(): void {
   for (const fn of listeners) fn(active);
 }
 
-export function onCameraChange(fn: (h: CameraHandle | null) => void): () => void {
+export function onCameraChange(
+  fn: (h: CameraHandle | null) => void,
+): () => void {
   listeners.add(fn);
   fn(active);
   return () => listeners.delete(fn);
@@ -29,36 +31,29 @@ export async function startCamera(
     );
   }
   stopCamera();
-  const tryOpen = async (withAudio: boolean) => {
-    return navigator.mediaDevices.getUserMedia({
+  let stream: MediaStream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
       video: {
         facingMode: { ideal: facing },
         width: { ideal: 1280 },
         height: { ideal: 720 },
       },
-      audio: withAudio,
+      audio: false,
     });
-  };
-  let stream: MediaStream;
-  try {
-    stream = await tryOpen(true);
-  } catch {
-    try {
-      stream = await tryOpen(false);
-    } catch (err) {
-      const name = err instanceof Error ? err.name : "";
-      if (name === "NotAllowedError" || name === "PermissionDeniedError") {
-        throw new Error(
-          "Camera permission was blocked. On iPhone: Settings → Safari → Camera. The page must be HTTPS.",
-        );
-      }
-      if (name === "NotFoundError" || name === "OverconstrainedError") {
-        throw new Error("No camera matched that request. Try the other camera or a different device.");
-      }
+  } catch (err) {
+    const name = err instanceof Error ? err.name : "";
+    if (name === "NotAllowedError" || name === "PermissionDeniedError") {
       throw new Error(
-        "Could not start the camera. Only one live camera can run at a time, and some browsers block it in embedded previews.",
+        "Camera blocked. Allow camera access in your browser settings.",
       );
     }
+    if (name === "NotFoundError" || name === "OverconstrainedError") {
+      throw new Error("No usable camera was found.");
+    }
+    throw new Error(
+      "Could not start the camera. Another app or embedded preview may be using it.",
+    );
   }
   active = { stream, facing };
   emit();
@@ -92,7 +87,10 @@ export async function recordCameraClip(
   const stream = handle.stream;
   const recType = pickClipType();
   const chunks: BlobPart[] = [];
-  const rec = new MediaRecorder(stream, recType.mime ? { mimeType: recType.mime } : undefined);
+  const rec = new MediaRecorder(
+    stream,
+    recType.mime ? { mimeType: recType.mime } : undefined,
+  );
   rec.ondataavailable = (ev) => {
     if (ev.data && ev.data.size > 0) chunks.push(ev.data);
   };
@@ -160,7 +158,11 @@ export class ClipRecorder {
     this.recording = false;
     this.rec = null;
     const mime = blob.type || "application/octet-stream";
-    const realExt = mime.includes("mp4") ? "mp4" : mime.includes("webm") ? "webm" : ext;
+    const realExt = mime.includes("mp4")
+      ? "mp4"
+      : mime.includes("webm")
+        ? "webm"
+        : ext;
     return { blob, ext: realExt, mime };
   }
 

@@ -1,4 +1,4 @@
-import { DemoSource } from "./demo-source";
+import { DemoSource, type SeedKind } from "./demo-source";
 import { currentCamera, stopCamera } from "./camera";
 import {
   drawCover,
@@ -129,17 +129,40 @@ export class MediaHub {
   }
 
   async loadDemo(id: SlotId, kind: "pixels" | "motion"): Promise<void> {
+    await this.loadSeed(id, kind);
+    const slot = id === "a" ? this.a : this.b;
+    slot.fileName = kind === "pixels" ? "demo-pixels" : "demo-motion";
+  }
+
+  async loadSeed(id: SlotId, kind: SeedKind): Promise<void> {
     this.clear(id);
     const slot = id === "a" ? this.a : this.b;
     slot.demo = new DemoSource(kind);
     slot.kind = "demo";
-    slot.fileName = kind === "pixels" ? "demo-pixels" : "demo-motion";
+    slot.fileName = `seed-${kind === "pixels" ? "grid" : kind}`;
+  }
+
+  async loadSnapshot(id: SlotId, canvas: HTMLCanvasElement): Promise<void> {
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob(
+        (result) =>
+          result
+            ? resolve(result)
+            : reject(new Error("Could not capture the output buffer.")),
+        "image/png",
+      );
+    });
+    await this.loadFile(
+      id,
+      new File([blob], "smoosh-snapshot.png", { type: "image/png" }),
+    );
   }
 
   async loadFile(id: SlotId, file: File): Promise<void> {
     const type = file.type || "";
     const isImage = type.startsWith("image/");
-    const isVideo = type.startsWith("video/") || /\.(mp4|webm|mov|m4v|ogv)$/i.test(file.name);
+    const isVideo =
+      type.startsWith("video/") || /\.(mp4|webm|mov|m4v|ogv)$/i.test(file.name);
     if (!isImage && !isVideo) {
       throw new Error(
         `“${file.name}” is not a playable video or image. Try MP4, WebM, MOV (if this browser allows it), PNG, or JPEG.`,
@@ -221,13 +244,16 @@ export class MediaHub {
       if (settled) return;
       settled = true;
       cleanup();
-      void video.play().then(onPlaying).catch((reason: unknown) => {
-        onError(
-          reason instanceof Error
-            ? reason
-            : new Error("The browser refused to start this source."),
-        );
-      });
+      void video
+        .play()
+        .then(onPlaying)
+        .catch((reason: unknown) => {
+          onError(
+            reason instanceof Error
+              ? reason
+              : new Error("The browser refused to start this source."),
+          );
+        });
     };
 
     if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
@@ -269,7 +295,10 @@ export class MediaHub {
     proto.requestVideoFrameCallback(tick);
   }
 
-  applyPlayback(id: SlotId, opts: { paused: boolean; loop: boolean; speed: number; inPoint: number }): void {
+  applyPlayback(
+    id: SlotId,
+    opts: { paused: boolean; loop: boolean; speed: number; inPoint: number },
+  ): void {
     const slot = id === "a" ? this.a : this.b;
     if (slot.demo) {
       slot.demo.paused = opts.paused;

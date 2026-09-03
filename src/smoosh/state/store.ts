@@ -42,7 +42,10 @@ export interface SmooshStore {
   engineError: string | null;
   sourceAspect: number;
   swapped: boolean;
-  setParam: <K extends keyof EngineParams>(key: K, value: EngineParams[K]) => void;
+  setParam: <K extends keyof EngineParams>(
+    key: K,
+    value: EngineParams[K],
+  ) => void;
   setParams: (p: EngineParams) => void;
   setMode: (m: SmooshMode) => void;
   setQuality: (q: QualityLevel) => void;
@@ -76,12 +79,16 @@ const emptySlot = (id: "a" | "b"): SlotState => ({
   paused: false,
   mirror: false,
   fill: "fill",
-  facing: "user",
+  facing: id === "b" ? "environment" : "user",
   error: null,
 });
 
 const defaultQuality = (): QualityLevel =>
-  typeof window === "undefined" ? "performance" : isMobileClient() ? "performance" : "balanced";
+  typeof window === "undefined"
+    ? "performance"
+    : isMobileClient()
+      ? "performance"
+      : "balanced";
 
 const emptyRec = (): RecState => ({
   active: false,
