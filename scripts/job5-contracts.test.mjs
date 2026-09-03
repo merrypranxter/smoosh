@@ -32,6 +32,14 @@ test("snapshot stays in-browser and compare remains outside the recorded canvas"
   assert.match(recorder, /proto\.captureStream\(30\)/);
 });
 
+test("the recording sheet keeps a real iPhone save action above the preview", () => {
+  const saveButton = ui.indexOf("SAVE / SHARE VIDEO");
+  const preview = ui.indexOf('className="preview-video"');
+  assert.ok(saveButton > 0 && saveButton < preview);
+  assert.match(ui, /Choose SAVE VIDEO in the iPhone share sheet/);
+  assert.match(recorder, /nav\.share\(\{ files: \[file\]/);
+});
+
 test("Job 5 adds organs without adding an eighth effect mode", () => {
   const modes = ui.match(/const MODES:[\s\S]*?\];/)?.[0] ?? "";
   assert.equal([...modes.matchAll(/^\s*"[a-z]+",$/gm)].length, 7);

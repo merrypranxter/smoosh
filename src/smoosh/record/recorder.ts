@@ -137,7 +137,12 @@ export class OutputRecorder {
     this.startedAt = performance.now();
   }
 
-  async stop(): Promise<{ blob: Blob; ext: string; mime: string; name: string }> {
+  async stop(): Promise<{
+    blob: Blob;
+    ext: string;
+    mime: string;
+    name: string;
+  }> {
     const rec = this.rec;
     if (!rec) throw new Error("Nothing is recording.");
     const blob = await new Promise<Blob>((resolve, reject) => {
@@ -147,12 +152,19 @@ export class OutputRecorder {
         resolve(new Blob(this.chunks, { type }));
       };
       if (rec.state === "recording" || rec.state === "paused") rec.stop();
-      else resolve(new Blob(this.chunks, { type: rec.mimeType || "video/webm" }));
+      else
+        resolve(new Blob(this.chunks, { type: rec.mimeType || "video/webm" }));
     });
     this.recording = false;
     this.rec = null;
     const mime = blob.type || this.mime || "application/octet-stream";
-    const ext = mime.includes("mp4") ? "mp4" : mime.includes("webm") ? "webm" : this.ext === "mp4" ? "mp4" : "webm";
+    const ext = mime.includes("mp4")
+      ? "mp4"
+      : mime.includes("webm")
+        ? "webm"
+        : this.ext === "mp4"
+          ? "mp4"
+          : "webm";
     const name = `smoosh-${stamp()}.${ext}`;
     for (const t of this.canvasStream?.getTracks() ?? []) {
       try {
@@ -201,15 +213,19 @@ export function downloadBlob(blob: Blob, name: string): void {
   setTimeout(() => URL.revokeObjectURL(url), 4000);
 }
 
-export function shareBlob(blob: Blob, name: string): Promise<void> {
+export async function shareBlob(
+  blob: Blob,
+  name: string,
+): Promise<"shared" | "downloaded"> {
   const file = new File([blob], name, { type: blob.type });
   const nav = navigator as Navigator & {
     share?: (data: ShareData) => Promise<void>;
     canShare?: (data: ShareData) => boolean;
   };
   if (nav.share && (!nav.canShare || nav.canShare({ files: [file] }))) {
-    return nav.share({ files: [file], title: "SMOOSH" });
+    await nav.share({ files: [file], title: "SMOOSH video" });
+    return "shared";
   }
   downloadBlob(blob, name);
-  return Promise.resolve();
+  return "downloaded";
 }

@@ -1224,6 +1224,11 @@ body {
 
 .modal-card {
   width: min(100%, 520px);
+  max-height: calc(
+    100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) -
+      24px
+  );
+  overflow-y: auto;
   background: var(--color-ink-2);
   border: 1px solid color-mix(in oklab, var(--color-chrome) 30%, transparent);
   border-radius: 22px;
@@ -1249,8 +1254,42 @@ body {
 
 .preview-video {
   width: 100%;
+  max-height: 42dvh;
+  object-fit: contain;
   border-radius: 12px;
   background: #000;
+}
+
+.record-preview-card {
+  overscroll-behavior: contain;
+}
+
+.record-save-hint {
+  margin: 2px 0 0;
+  color: var(--color-fog);
+  font-size: 0.7rem;
+}
+
+.record-save-btn {
+  width: 100%;
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border: 1px solid var(--color-lime);
+  border-radius: 14px;
+  background: var(--color-lime);
+  color: var(--color-ink);
+  font-size: 0.84rem;
+  font-weight: 950;
+  letter-spacing: 0.06em;
+  box-shadow: 0 0 22px color-mix(in oklab, var(--color-lime) 24%, transparent);
+}
+
+.record-save-btn svg {
+  width: 20px;
+  height: 20px;
 }
 
 .preview-meta {

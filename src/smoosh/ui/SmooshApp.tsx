@@ -601,6 +601,28 @@ export function SmooshApp() {
     }
   }
 
+  async function saveRecording() {
+    const { blob, fileName } = useSmoosh.getState().rec;
+    if (!blob || !fileName) return;
+    try {
+      const result = await shareBlob(blob, fileName);
+      useSmoosh
+        .getState()
+        .setToast(
+          result === "shared"
+            ? "Choose SAVE VIDEO in the iPhone share sheet."
+            : "Video download started.",
+        );
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      useSmoosh
+        .getState()
+        .setToast(
+          "The share sheet could not open. Try DOWNLOAD FILE underneath the preview.",
+        );
+    }
+  }
+
   function primeAndRun(): boolean {
     const engine = engineRef.current;
     if (!engine) return false;
@@ -1288,9 +1310,14 @@ export function SmooshApp() {
 
       {store.rec.previewUrl && !store.rec.active && (
         <div className="modal" role="dialog" aria-label="Recording preview">
-          <div className="modal-card">
+          <div className="modal-card record-preview-card">
             <div className="modal-head">
-              <h2>TAKE</h2>
+              <div>
+                <h2>TAKE READY</h2>
+                <p className="record-save-hint">
+                  iPhone: tap save, then choose Save Video.
+                </p>
+              </div>
               <button
                 type="button"
                 className="icon-btn"
@@ -1308,6 +1335,13 @@ export function SmooshApp() {
                 <X />
               </button>
             </div>
+            <button
+              type="button"
+              className="record-save-btn"
+              onClick={() => void saveRecording()}
+            >
+              <Share2 /> SAVE / SHARE VIDEO
+            </button>
             <video
               className="preview-video"
               src={store.rec.previewUrl}
@@ -1330,20 +1364,7 @@ export function SmooshApp() {
                   }
                 }}
               >
-                <Download /> Download
-              </button>
-              <button
-                type="button"
-                className="text-btn"
-                onClick={() => {
-                  if (store.rec.blob && store.rec.fileName) {
-                    void shareBlob(store.rec.blob, store.rec.fileName).catch(
-                      () => undefined,
-                    );
-                  }
-                }}
-              >
-                <Share2 /> Share
+                <Download /> Download file
               </button>
             </div>
           </div>
