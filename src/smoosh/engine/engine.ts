@@ -280,6 +280,7 @@ export class SmooshEngine {
           : Math.max(this.boostDecay, this.infecting ? 1 : 0) * 0.55,
       flowHold: motionPaused || motionMissing,
       useHeldFlow: s.mode === "buffer" || s.mode === "hold",
+      symmetry: s.symmetry,
     });
     this.syncPrimeState();
 

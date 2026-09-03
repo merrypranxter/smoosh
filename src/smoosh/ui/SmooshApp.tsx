@@ -1014,6 +1014,14 @@ export function SmooshApp() {
               onChange={setComparePosition}
             />
           )}
+          {store.symmetry.enabled && !compare && (
+            <SymmetryOverlay
+              axis={store.symmetry.axis}
+              sourceSide={store.symmetry.sourceSide}
+              onChange={(axis) => store.setSymmetry({ axis })}
+              onReset={() => store.setSymmetry({ axis: 0.5 })}
+            />
+          )}
           <div className="stage-frame" aria-hidden />
           {store.rec.active && (
             <div className="rec-chip">
@@ -1046,6 +1054,55 @@ export function SmooshApp() {
         >
           COMPARE
         </button>
+        <button
+          type="button"
+          className={cn(store.symmetry.enabled && "on")}
+          aria-pressed={store.symmetry.enabled}
+          onClick={() => {
+            const enabled = !store.symmetry.enabled;
+            store.setSymmetry({ enabled });
+            if (enabled) setCompare(false);
+          }}
+        >
+          SYMMETRY
+        </button>
+        {store.symmetry.enabled && (
+          <>
+            <button
+              type="button"
+              className="symmetry-side-btn"
+              onClick={() =>
+                store.setSymmetry({
+                  sourceSide:
+                    store.symmetry.sourceSide === "left" ? "right" : "left",
+                })
+              }
+            >
+              {store.symmetry.sourceSide.toUpperCase()} FEEDS
+            </button>
+            <div className="symmetry-axis-control">
+              <span>AXIS</span>
+              <input
+                type="range"
+                min={12}
+                max={88}
+                value={Math.round(store.symmetry.axis * 100)}
+                aria-label="Symmetry axis position"
+                onChange={(event) =>
+                  store.setSymmetry({ axis: Number(event.target.value) / 100 })
+                }
+              />
+              <button
+                type="button"
+                title="Reset symmetry axis to center"
+                aria-label="Reset symmetry axis to center"
+                onClick={() => store.setSymmetry({ axis: 0.5 })}
+              >
+                {Math.round(store.symmetry.axis * 100)}%
+              </button>
+            </div>
+          </>
+        )}
       </div>
 
       <div
@@ -1645,6 +1702,51 @@ function CompareOverlay({
         value={position}
         aria-label="Raw versus smashed comparison position"
         onChange={(event) => onChange(Number(event.target.value))}
+      />
+    </div>
+  );
+}
+
+function SymmetryOverlay({
+  axis,
+  sourceSide,
+  onChange,
+  onReset,
+}: {
+  axis: number;
+  sourceSide: "left" | "right";
+  onChange: (axis: number) => void;
+  onReset: () => void;
+}) {
+  const percent = Math.round(axis * 100);
+  return (
+    <div className="symmetry-overlay">
+      <div
+        className="symmetry-wound"
+        style={{ left: `${percent}%` }}
+        aria-hidden
+      >
+        <span>↔</span>
+      </div>
+      <div
+        className={cn("symmetry-feed", sourceSide)}
+        style={
+          sourceSide === "left"
+            ? { right: `${100 - percent}%` }
+            : { left: `${percent}%` }
+        }
+        aria-hidden
+      />
+      <input
+        className="symmetry-drag-range"
+        type="range"
+        min={12}
+        max={88}
+        value={percent}
+        aria-label={`Move symmetry axis. ${sourceSide} side feeds the mirror.`}
+        aria-valuetext={`${percent} percent, ${sourceSide} side feeds`}
+        onChange={(event) => onChange(Number(event.target.value) / 100)}
+        onDoubleClick={onReset}
       />
     </div>
   );

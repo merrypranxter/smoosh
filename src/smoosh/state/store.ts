@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import {
   DEFAULT_PARAMS,
+  DEFAULT_SYMMETRY,
   SAFE_RANDOM_RANGES,
   type AspectPreset,
   type AudioRoute,
@@ -9,6 +10,7 @@ import {
   type QualityLevel,
   type SlotState,
   type SmooshMode,
+  type SymmetrySettings,
 } from "@/smoosh/types";
 import { isMobileClient } from "@/smoosh/types";
 
@@ -42,6 +44,7 @@ export interface SmooshStore {
   engineError: string | null;
   sourceAspect: number;
   swapped: boolean;
+  symmetry: SymmetrySettings;
   setParam: <K extends keyof EngineParams>(
     key: K,
     value: EngineParams[K],
@@ -63,6 +66,7 @@ export interface SmooshStore {
   setToast: (msg: string | null) => void;
   setEngineError: (msg: string | null) => void;
   setSourceAspect: (n: number) => void;
+  setSymmetry: (patch: Partial<SymmetrySettings>) => void;
   resetParams: () => void;
   randomizeParams: () => void;
 }
@@ -120,6 +124,7 @@ export const useSmoosh = create<SmooshStore>((set, get) => ({
   engineError: null,
   sourceAspect: 9 / 16,
   swapped: false,
+  symmetry: { ...DEFAULT_SYMMETRY },
   setParam: (key, value) =>
     set((s) => ({ params: { ...s.params, [key]: value } })),
   setParams: (p) => set({ params: { ...DEFAULT_PARAMS, ...p } }),
@@ -178,6 +183,14 @@ export const useSmoosh = create<SmooshStore>((set, get) => ({
   setToast: (msg) => set({ toast: msg }),
   setEngineError: (msg) => set({ engineError: msg }),
   setSourceAspect: (n) => set({ sourceAspect: n }),
+  setSymmetry: (patch) =>
+    set((state) => ({
+      symmetry: {
+        ...state.symmetry,
+        ...patch,
+        axis: Math.min(0.88, Math.max(0.12, patch.axis ?? state.symmetry.axis)),
+      },
+    })),
   resetParams: () => set({ params: { ...DEFAULT_PARAMS } }),
   randomizeParams: () => {
     const next = { ...get().params };

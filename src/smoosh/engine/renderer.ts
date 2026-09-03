@@ -1,4 +1,8 @@
-import type { EngineParams, QualityLevel } from "@/smoosh/types";
+import type {
+  EngineParams,
+  QualityLevel,
+  SymmetrySettings,
+} from "@/smoosh/types";
 import { qualityLongEdge } from "@/smoosh/types";
 import {
   compileProgram,
@@ -30,18 +34,12 @@ export interface RenderInputs {
   pixelsFill: "fill" | "fit";
   motionFill: "fill" | "fit";
   freezePixels: boolean;
-  mode:
-    | "transfer"
-    | "cross"
-    | "freeze"
-    | "self"
-    | "buffer"
-    | "hold"
-    | "chroma";
+  mode: "transfer" | "cross" | "freeze" | "self" | "buffer" | "hold" | "chroma";
   params: EngineParams;
   injectBoost: number;
   flowHold: boolean;
   useHeldFlow: boolean;
+  symmetry: SymmetrySettings;
 }
 
 export interface PrimeInputs {
@@ -206,7 +204,12 @@ export class SmooshRenderer {
       };
       this.blitProg = {
         prog: blitP,
-        loc: loc(gl, blitP, ["uTex"]),
+        loc: loc(gl, blitP, [
+          "uTex",
+          "uSymmetryEnabled",
+          "uSymmetryAxis",
+          "uSymmetrySide",
+        ]),
       };
     } catch (err) {
       this.error = err instanceof Error ? err.message : String(err);
@@ -254,7 +257,8 @@ export class SmooshRenderer {
     this.mh = Math.max(24, Math.round(h / 10));
 
     const hf = this.halfFloat;
-    if (!this.flowRaw) this.flowRaw = createTarget(gl, this.mw, this.mh, hf, gl.NEAREST);
+    if (!this.flowRaw)
+      this.flowRaw = createTarget(gl, this.mw, this.mh, hf, gl.NEAREST);
     else resizeTarget(gl, this.flowRaw, this.mw, this.mh);
 
     if (!this.flowB) {
@@ -338,7 +342,10 @@ export class SmooshRenderer {
     w = Math.max(2, w - (w % 2));
     h = Math.max(2, h - (h % 2));
     const dprCap = quality === "high" ? 1.5 : 1;
-    const dpr = Math.min(dprCap, typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1);
+    const dpr = Math.min(
+      dprCap,
+      typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
+    );
     if (quality === "performance") {
       /* keep long-edge as specified; ignore dpr */
     } else if (quality === "balanced") {
@@ -374,22 +381,12 @@ export class SmooshRenderer {
     }
   }
 
-  private upload(
-    tex: WebGLTexture | null,
-    canvas: HTMLCanvasElement,
-  ): void {
+  private upload(tex: WebGLTexture | null, canvas: HTMLCanvasElement): void {
     const gl = this.gl;
     if (!gl || !tex) return;
     gl.bindTexture(gl.TEXTURE_2D, tex);
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
-    gl.texImage2D(
-      gl.TEXTURE_2D,
-      0,
-      gl.RGBA,
-      gl.RGBA,
-      gl.UNSIGNED_BYTE,
-      canvas,
-    );
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
   }
 
   private capture(
@@ -524,7 +521,12 @@ export class SmooshRenderer {
           this.hasFrozen = true;
         }
       }
-      this.upload(this.pixelsTex, input.freezePixels && this.hasFrozen ? this.frozenPixels : this.capturePixels);
+      this.upload(
+        this.pixelsTex,
+        input.freezePixels && this.hasFrozen
+          ? this.frozenPixels
+          : this.capturePixels,
+      );
       this.lastPixelsCanvas =
         input.freezePixels && this.hasFrozen
           ? this.frozenPixels
@@ -540,7 +542,11 @@ export class SmooshRenderer {
       );
       const write = this.motionFlip ? this.motionCurr : this.motionPrev;
       const motionFrame = input.motionStill
-        ? shiftedFrame(this.captureMotion, this.syntheticMotion, this.motionFlip ? -1 : 1)
+        ? shiftedFrame(
+            this.captureMotion,
+            this.syntheticMotion,
+            this.motionFlip ? -1 : 1,
+          )
         : this.captureMotion;
       this.upload(write, motionFrame);
       this.motionFlip = !this.motionFlip;
@@ -550,13 +556,15 @@ export class SmooshRenderer {
     if (needAFlow && mediaReady(pixelsSrc) && !input.freezePixels) {
       const write = this.motionAFlip ? this.motionACurr : this.motionAPrev;
       const pixelsFrame = input.pixelsStill
-        ? shiftedFrame(this.capturePixels, this.syntheticPixels, this.motionAFlip ? -1 : 1)
+        ? shiftedFrame(
+            this.capturePixels,
+            this.syntheticPixels,
+            this.motionAFlip ? -1 : 1,
+          )
         : this.capturePixels;
       this.upload(
         write,
-        input.freezePixels && this.hasFrozen
-          ? this.frozenPixels
-          : pixelsFrame,
+        input.freezePixels && this.hasFrozen ? this.frozenPixels : pixelsFrame,
       );
       this.motionAFlip = !this.motionAFlip;
     }
@@ -589,12 +597,15 @@ export class SmooshRenderer {
 
     if (!this.feedbackA || !this.flowB) return;
 
-    const moshParams = input.flowHold && !input.useHeldFlow
-      ? { ...input.params, motionGain: 0 }
-      : input.params;
+    const moshParams =
+      input.flowHold && !input.useHeldFlow
+        ? { ...input.params, motionGain: 0 }
+        : input.params;
 
     const flowForA =
-      input.mode === "self" && this.flowA ? this.flowA.read().tex : this.flowB.read().tex;
+      input.mode === "self" && this.flowA
+        ? this.flowA.read().tex
+        : this.flowB.read().tex;
 
     this.moshInto(
       this.feedbackA,
@@ -620,11 +631,7 @@ export class SmooshRenderer {
       present = this.mixTarget!.tex;
     }
 
-    if (
-      input.params.mix < 0.999 &&
-      this.pixelsTex &&
-      this.outputMixTarget
-    ) {
+    if (input.params.mix < 0.999 && this.pixelsTex && this.outputMixTarget) {
       this.mixTextures(
         this.pixelsTex,
         present,
@@ -634,7 +641,7 @@ export class SmooshRenderer {
       present = this.outputMixTarget.tex;
     }
 
-    this.present(present);
+    this.present(present, input.symmetry);
   }
 
   private estimateFlow(
@@ -750,7 +757,7 @@ export class SmooshRenderer {
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
 
-  private present(tex: WebGLTexture): void {
+  private present(tex: WebGLTexture, symmetry: SymmetrySettings): void {
     const gl = this.gl;
     if (!gl) return;
     gl.bindVertexArray(this.vao);
@@ -760,6 +767,12 @@ export class SmooshRenderer {
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, tex);
     gl.uniform1i(this.blitProg.loc.uTex, 0);
+    gl.uniform1i(this.blitProg.loc.uSymmetryEnabled, symmetry.enabled ? 1 : 0);
+    gl.uniform1f(this.blitProg.loc.uSymmetryAxis, symmetry.axis);
+    gl.uniform1i(
+      this.blitProg.loc.uSymmetrySide,
+      symmetry.sourceSide === "left" ? 0 : 1,
+    );
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
 
@@ -773,6 +786,9 @@ export class SmooshRenderer {
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, tex);
     gl.uniform1i(this.blitProg.loc.uTex, 0);
+    gl.uniform1i(this.blitProg.loc.uSymmetryEnabled, 0);
+    gl.uniform1f(this.blitProg.loc.uSymmetryAxis, 0.5);
+    gl.uniform1i(this.blitProg.loc.uSymmetrySide, 0);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   }

@@ -1,11 +1,5 @@
 export type SmooshMode =
-  | "transfer"
-  | "cross"
-  | "freeze"
-  | "self"
-  | "buffer"
-  | "hold"
-  | "chroma";
+  "transfer" | "cross" | "freeze" | "self" | "buffer" | "hold" | "chroma";
 
 export type QualityLevel = "performance" | "balanced" | "high";
 
@@ -16,22 +10,26 @@ export type FillMode = "fill" | "fit";
 export type AudioRoute = "a" | "b" | "mix" | "mute";
 
 export type BufferPattern =
-  | "live"
-  | "hold"
-  | "forward"
-  | "backward"
-  | "pingpong"
-  | "random";
+  "live" | "hold" | "forward" | "backward" | "pingpong" | "random";
 
 export type SlotId = "a" | "b";
 
+export type SymmetrySide = "left" | "right";
+
+export interface SymmetrySettings {
+  enabled: boolean;
+  axis: number;
+  sourceSide: SymmetrySide;
+}
+
+export const DEFAULT_SYMMETRY: SymmetrySettings = {
+  enabled: false,
+  axis: 0.5,
+  sourceSide: "left",
+};
+
 export type SourceKind =
-  | "empty"
-  | "demo"
-  | "video"
-  | "image"
-  | "camera"
-  | "self";
+  "empty" | "demo" | "video" | "image" | "camera" | "self";
 
 export interface EngineParams {
   sourceRefresh: number;
@@ -79,10 +77,7 @@ export const DEFAULT_PARAMS: EngineParams = {
   crossBalance: 0.5,
 };
 
-export const MODE_META: Record<
-  SmooshMode,
-  { label: string; hint: string }
-> = {
+export const MODE_META: Record<SmooshMode, { label: string; hint: string }> = {
   transfer: {
     label: "MOVING TRANSFER",
     hint: "A supplies the pixels. B supplies the wind. Both stay live.",
@@ -147,20 +142,18 @@ export function clamp(v: number, a: number, b: number): number {
   return Math.min(b, Math.max(a, v));
 }
 
-export const SAFE_RANDOM_RANGES: Record<
-  keyof EngineParams,
-  [number, number]
-> = {
-  sourceRefresh: [0.04, 0.55],
-  persistence: [0.72, 0.98],
-  motionGain: [0.45, 2.6],
-  mix: [0.45, 1],
-  motionSensitivity: [0.02, 0.22],
-  blockScale: [0.7, 2.2],
-  cleanBleed: [0, 0.18],
-  feedbackZoom: [0.988, 1.016],
-  feedbackRotation: [-0.008, 0.008],
-  edgeTear: [0, 0.7],
-  rgbSplit: [0, 0.55],
-  crossBalance: [0.15, 0.85],
-};
+export const SAFE_RANDOM_RANGES: Record<keyof EngineParams, [number, number]> =
+  {
+    sourceRefresh: [0.04, 0.55],
+    persistence: [0.72, 0.98],
+    motionGain: [0.45, 2.6],
+    mix: [0.45, 1],
+    motionSensitivity: [0.02, 0.22],
+    blockScale: [0.7, 2.2],
+    cleanBleed: [0, 0.18],
+    feedbackZoom: [0.988, 1.016],
+    feedbackRotation: [-0.008, 0.008],
+    edgeTear: [0, 0.7],
+    rgbSplit: [0, 0.55],
+    crossBalance: [0.15, 0.85],
+  };

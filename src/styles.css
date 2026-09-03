@@ -291,12 +291,122 @@ body {
   right: 10px;
 }
 
+.symmetry-overlay,
+.symmetry-drag-range {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.symmetry-overlay {
+  z-index: 1;
+}
+
+.symmetry-drag-range {
+  z-index: 4;
+  margin: 0;
+  opacity: 0.001;
+  cursor: ew-resize;
+  touch-action: none;
+}
+
+.symmetry-wound {
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  pointer-events: none;
+  transform: translateX(-50%);
+  background: var(--color-pink);
+  box-shadow:
+    0 0 8px var(--color-paper),
+    0 0 18px var(--color-pink),
+    0 0 34px var(--color-uv);
+}
+
+.symmetry-wound span {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  transform: translate(-50%, -50%);
+  border: 2px solid var(--color-paper);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--color-pink) 78%, var(--color-ink));
+  color: var(--color-paper);
+  font-weight: 950;
+  box-shadow: 0 0 22px #000;
+}
+
+.symmetry-feed {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  bottom: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--color-cyan) 13%, transparent),
+    transparent 70%
+  );
+}
+
+.symmetry-feed.left {
+  left: 0;
+}
+
+.symmetry-feed.right {
+  right: 0;
+  transform: scaleX(-1);
+}
+
 .stage-actions {
   width: min(100%, 520px);
   margin: -2px auto 0;
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 6px;
+}
+
+.symmetry-axis-control {
+  flex: 1 1 150px;
+  min-width: 0;
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding-left: 8px;
+  border: 1px solid color-mix(in oklab, var(--color-pink) 34%, transparent);
+  border-radius: 9px;
+  background: var(--color-ink-2);
+  color: var(--color-fog);
+  font-size: 0.58rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+}
+
+.symmetry-axis-control input {
+  min-width: 58px;
+  flex: 1;
+  accent-color: var(--color-pink);
+}
+
+.stage-actions .symmetry-axis-control button {
+  min-width: 47px;
+  border: 0;
+  border-left: 1px solid color-mix(in oklab, var(--color-pink) 30%, transparent);
+  border-radius: 0 8px 8px 0;
+  color: var(--color-paper);
+}
+
+.stage-actions .symmetry-side-btn {
+  color: var(--color-pink);
 }
 
 .stage-actions button {

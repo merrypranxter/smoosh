@@ -205,7 +205,17 @@ precision highp sampler2D;
 in vec2 vUv;
 out vec4 fragColor;
 uniform sampler2D uTex;
+uniform int uSymmetryEnabled;
+uniform float uSymmetryAxis;
+uniform int uSymmetrySide;
 void main() {
-  fragColor = texture(uTex, vUv);
+  vec2 uv = vUv;
+  if (uSymmetryEnabled == 1) {
+    bool reflectRight = uSymmetrySide == 0 && uv.x > uSymmetryAxis;
+    bool reflectLeft = uSymmetrySide == 1 && uv.x < uSymmetryAxis;
+    if (reflectRight || reflectLeft) uv.x = 2.0 * uSymmetryAxis - uv.x;
+    uv.x = clamp(uv.x, 0.0, 1.0);
+  }
+  fragColor = texture(uTex, uv);
 }
 `;
