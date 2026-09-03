@@ -30,7 +30,14 @@ export interface RenderInputs {
   pixelsFill: "fill" | "fit";
   motionFill: "fill" | "fit";
   freezePixels: boolean;
-  mode: "transfer" | "cross" | "freeze" | "self" | "buffer";
+  mode:
+    | "transfer"
+    | "cross"
+    | "freeze"
+    | "self"
+    | "buffer"
+    | "hold"
+    | "chroma";
   params: EngineParams;
   injectBoost: number;
   flowHold: boolean;
@@ -190,6 +197,7 @@ export class SmooshRenderer {
           "uTear",
           "uSplit",
           "uInjectBoost",
+          "uChromaMode",
         ]),
       };
       this.mixProg = {
@@ -487,6 +495,13 @@ export class SmooshRenderer {
     return this.bufferPixels;
   }
 
+  lockOutputBody(): void {
+    if (!this.seeded) return;
+    copy2d(this.canvas, this.bufferPixels);
+    this.upload(this.pixelsTex, this.bufferPixels);
+    this.reseed();
+  }
+
   frame(input: RenderInputs): void {
     const gl = this.gl;
     if (!gl || this.lost || this.error) return;
@@ -587,6 +602,7 @@ export class SmooshRenderer {
       flowForA,
       moshParams,
       input.injectBoost,
+      input.mode === "chroma",
     );
 
     let present: WebGLTexture = this.feedbackA.read().tex;
@@ -598,6 +614,7 @@ export class SmooshRenderer {
         this.flowA.read().tex,
         moshParams,
         input.injectBoost,
+        false,
       );
       this.mixFeedbacks(input.params.crossBalance);
       present = this.mixTarget!.tex;
@@ -669,6 +686,7 @@ export class SmooshRenderer {
     flow: WebGLTexture,
     params: EngineParams,
     injectBoost: number,
+    chromaMode: boolean,
   ): void {
     const gl = this.gl;
     if (!gl || !source) return;
@@ -695,6 +713,7 @@ export class SmooshRenderer {
     gl.uniform1f(this.moshProg.loc.uTear, params.edgeTear);
     gl.uniform1f(this.moshProg.loc.uSplit, params.rgbSplit * 0.35);
     gl.uniform1f(this.moshProg.loc.uInjectBoost, injectBoost);
+    gl.uniform1i(this.moshProg.loc.uChromaMode, chromaMode ? 1 : 0);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
     ping.swap();
   }

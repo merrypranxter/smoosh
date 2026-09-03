@@ -31,6 +31,14 @@ export function routeModeSources(
       effectiveMode: "buffer",
     };
   }
+  if (mode === "hold" || mode === "chroma") {
+    return {
+      pixels: solo,
+      motion: hasB ? "b" : solo,
+      pixelsB: hasB ? "b" : solo,
+      effectiveMode: mode,
+    };
+  }
   return {
     pixels: "a",
     motion: "b",
@@ -60,5 +68,6 @@ export function needsSourceForMode(
 ): boolean {
   if (mode === "self") return !hasA && !hasB;
   if (mode === "buffer") return !primed && !hasA && !hasB;
+  if (mode === "hold" || mode === "chroma") return !hasA && !hasB;
   return !hasA || !hasB;
 }

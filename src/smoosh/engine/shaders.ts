@@ -134,6 +134,7 @@ uniform float uRot;
 uniform float uTear;
 uniform float uSplit;
 uniform float uInjectBoost;
+uniform int uChromaMode;
 ${FLOW_COMMON}
 
 vec2 rotate(vec2 p, float a) {
@@ -157,9 +158,22 @@ void main() {
   vec2 base = centered + 0.5;
   vec2 sampleUv = clamp(base - flow + tear, vec2(-0.05), vec2(1.05));
 
-  vec4 sR = texture(uFeedback, sampleUv - flow * uSplit);
-  vec4 sG = texture(uFeedback, sampleUv);
-  vec4 sB = texture(uFeedback, sampleUv + flow * uSplit);
+  vec4 sR;
+  vec4 sG;
+  vec4 sB;
+  if (uChromaMode == 1) {
+    vec2 rainbowNudge = plen > 1.0e-6 ? (perp / plen) * uTexel * 2.5 : vec2(0.0);
+    vec2 redUv = clamp(base - flow * 1.35 + tear + rainbowNudge, vec2(-0.05), vec2(1.05));
+    vec2 greenUv = clamp(base - flow + tear, vec2(-0.05), vec2(1.05));
+    vec2 blueUv = clamp(base - flow * 0.65 + tear - rainbowNudge, vec2(-0.05), vec2(1.05));
+    sR = texture(uFeedback, redUv);
+    sG = texture(uFeedback, greenUv);
+    sB = texture(uFeedback, blueUv);
+  } else {
+    sR = texture(uFeedback, sampleUv - flow * uSplit);
+    sG = texture(uFeedback, sampleUv);
+    sB = texture(uFeedback, sampleUv + flow * uSplit);
+  }
   vec3 warped = vec3(sR.r, sG.g, sB.b) * uPersist;
 
   vec3 src = texture(uSource, vUv).rgb;

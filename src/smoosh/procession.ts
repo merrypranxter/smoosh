@@ -20,6 +20,8 @@ const MODES = new Set<SmooshMode>([
   "freeze",
   "self",
   "buffer",
+  "hold",
+  "chroma",
 ]);
 
 export function defaultProcession(): ProcessionStep[] {

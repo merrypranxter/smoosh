@@ -3,7 +3,9 @@ export type SmooshMode =
   | "cross"
   | "freeze"
   | "self"
-  | "buffer";
+  | "buffer"
+  | "hold"
+  | "chroma";
 
 export type QualityLevel = "performance" | "balanced" | "high";
 
@@ -100,6 +102,14 @@ export const MODE_META: Record<
   buffer: {
     label: "BUFFER ABUSE",
     hint: "Stop reading new frames. Keep dragging the sludge.",
+  },
+  hold: {
+    label: "HOLD DROP",
+    hint: "Keep the body. Keep applying new wind. This is the keyframe murder.",
+  },
+  chroma: {
+    label: "CHROMA SPLIT FLOW",
+    hint: "Red, green, and blue catch different winds. Registration is a lie.",
   },
 };
 

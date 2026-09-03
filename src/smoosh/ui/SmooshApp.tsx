@@ -61,7 +61,15 @@ import {
   type SmooshMode,
 } from "@/smoosh/types";
 
-const MODES: SmooshMode[] = ["transfer", "cross", "freeze", "self", "buffer"];
+const MODES: SmooshMode[] = [
+  "transfer",
+  "cross",
+  "freeze",
+  "self",
+  "buffer",
+  "hold",
+  "chroma",
+];
 
 export function SmooshApp() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -507,8 +515,12 @@ export function SmooshApp() {
   }
 
   function ignite() {
+    const lockedMode = useSmoosh.getState().mode;
     playSources(["a", "b"], {
-      forcePrime: !processionRunningRef.current,
+      forcePrime:
+        !processionRunningRef.current &&
+        lockedMode !== "hold" &&
+        lockedMode !== "buffer",
       inject: true,
     });
   }
@@ -516,6 +528,7 @@ export function SmooshApp() {
   function engageMode(mode: SmooshMode, preserveBuffer: boolean) {
     const engine = engineRef.current;
     const state = useSmoosh.getState();
+    if (mode === "hold" && engine?.primed) engine.lockOutputBody();
     state.setMode(mode);
 
     const next = useSmoosh.getState();
@@ -528,6 +541,8 @@ export function SmooshApp() {
       ids = hasB ? ["b"] : [];
     } else if (mode === "buffer") {
       ids = hasB ? ["b"] : !engine?.primed && hasA ? ["a"] : [];
+    } else if (mode === "hold") {
+      ids = hasB ? ["b"] : hasA ? ["a"] : [];
     } else {
       ids = (["a", "b"] as const).filter((id) =>
         id === "a" ? hasA : hasB,

@@ -105,6 +105,11 @@ export class SmooshEngine {
     this.cleanPulse = 1;
   }
 
+  lockOutputBody(): void {
+    this.renderer?.lockOutputBody();
+    this.syncPrimeState();
+  }
+
   get primed(): boolean {
     return this.renderer?.primed ?? false;
   }
@@ -199,7 +204,7 @@ export class SmooshEngine {
         this.crossWeather,
       );
     }
-    if (s.mode === "buffer") {
+    if (s.mode === "buffer" || s.mode === "hold") {
       params.sourceRefresh = 0;
       params.cleanBleed = 0;
       params.persistence = bufferPersistence(params.persistence);
@@ -269,9 +274,12 @@ export class SmooshEngine {
       freezePixels: freeze,
       mode: route.effectiveMode,
       params,
-      injectBoost: Math.max(this.boostDecay, this.infecting ? 1 : 0) * 0.55,
+      injectBoost:
+        s.mode === "hold"
+          ? 0
+          : Math.max(this.boostDecay, this.infecting ? 1 : 0) * 0.55,
       flowHold: motionPaused || motionMissing,
-      useHeldFlow: s.mode === "buffer",
+      useHeldFlow: s.mode === "buffer" || s.mode === "hold",
     });
     this.syncPrimeState();
 
