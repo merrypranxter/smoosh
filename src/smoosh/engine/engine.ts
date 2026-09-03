@@ -314,6 +314,7 @@ export class SmooshEngine {
     const outputH = Math.max(64, Math.round(outputW / Math.max(0.1, aspect)));
     if (this.outputRing.w !== outputW || this.outputRing.h !== outputH) {
       this.outputRing.resize(outputW, outputH, 50);
+      this.outputRing.release();
       this.outputLoopActive = false;
       this.outputLoopFrame = null;
     }
