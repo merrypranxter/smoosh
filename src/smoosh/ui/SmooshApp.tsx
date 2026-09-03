@@ -35,6 +35,16 @@ import { needsSourceForMode } from "@/smoosh/engine/mode-contracts";
 import { ClipRecorder, startCamera, stopCamera, switchFacing } from "@/smoosh/media/camera";
 import { MediaHub } from "@/smoosh/media/sources";
 import {
+  PROCESSION_STORAGE_KEY,
+  clampProcessionDuration,
+  defaultProcession,
+  moveProcessionStep,
+  nextProcessionIndex,
+  normalizeSavedProcession,
+  shouldPrimeForMode,
+  type ProcessionStep,
+} from "@/smoosh/procession";
+import {
   downloadBlob,
   OutputRecorder,
   shareBlob,
@@ -63,12 +73,30 @@ export function SmooshApp() {
   const clipRef = useRef<ClipRecorder | null>(null);
   const recTimer = useRef<number>(0);
   const pendingPlayRef = useRef(new Set<"a" | "b">());
+  const processionTimerRef = useRef<number>(0);
+  const processionClockRef = useRef<number>(0);
+  const processionRunIdRef = useRef(0);
+  const processionRunningRef = useRef(false);
+  const lastPlayableStepRef = useRef<number | null>(null);
+  const processionStepIdRef = useRef(0);
+  const skipProcessionSaveRef = useRef(true);
 
   const [booted, setBooted] = useState(false);
   const [bufferPrimed, setBufferPrimed] = useState(false);
   const [infecting, setInfecting] = useState(false);
   const [crossWeather, setCrossWeather] = useState<"a" | "b">("b");
   const [mediaWait, setMediaWait] = useState<string | null>(null);
+  const [processionSteps, setProcessionSteps] = useState<ProcessionStep[]>(
+    defaultProcession,
+  );
+  const [processionLoop, setProcessionLoop] = useState(false);
+  const [processionRunning, setProcessionRunning] = useState(false);
+  const [activeProcessionStep, setActiveProcessionStep] = useState<
+    number | null
+  >(null);
+  const [processionRemaining, setProcessionRemaining] = useState(0);
+  const [processionNeedSource, setProcessionNeedSource] = useState(false);
+  const [processionNotice, setProcessionNotice] = useState<string | null>(null);
   const [thumbs, setThumbs] = useState<{ a: string | null; b: string | null }>({
     a: null,
     b: null,
@@ -93,6 +121,40 @@ export function SmooshApp() {
   }));
 
   const store = useSmoosh();
+  const processionStepsRef = useRef(processionSteps);
+  const processionLoopRef = useRef(processionLoop);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(PROCESSION_STORAGE_KEY);
+      if (!raw) return;
+      const saved = normalizeSavedProcession(JSON.parse(raw));
+      if (!saved) return;
+      processionStepsRef.current = saved.steps;
+      processionLoopRef.current = saved.loop;
+      setProcessionSteps(saved.steps);
+      setProcessionLoop(saved.loop);
+    } catch {
+      /* Ignore malformed or unavailable local storage. */
+    }
+  }, []);
+
+  useEffect(() => {
+    processionStepsRef.current = processionSteps;
+    processionLoopRef.current = processionLoop;
+    if (skipProcessionSaveRef.current) {
+      skipProcessionSaveRef.current = false;
+      return;
+    }
+    try {
+      window.localStorage.setItem(
+        PROCESSION_STORAGE_KEY,
+        JSON.stringify({ version: 1, loop: processionLoop, steps: processionSteps }),
+      );
+    } catch {
+      /* The editor still works when storage is blocked. */
+    }
+  }, [processionLoop, processionSteps]);
 
   useEffect(() => {
     const hub = new MediaHub();
@@ -146,6 +208,9 @@ export function SmooshApp() {
       hub.dispose();
       stopCamera();
       if (recTimer.current) window.clearInterval(recTimer.current);
+      if (processionTimerRef.current) window.clearTimeout(processionTimerRef.current);
+      if (processionClockRef.current) window.clearInterval(processionClockRef.current);
+      processionRunIdRef.current += 1;
     };
   }, []);
 
@@ -385,11 +450,12 @@ export function SmooshApp() {
     return engine.prime();
   }
 
-  function sourceStarted(id: "a" | "b") {
+  function sourceStarted(id: "a" | "b", shouldPrime: boolean) {
     pendingPlayRef.current.delete(id);
     const remaining = [...pendingPlayRef.current].map((slot) => slot.toUpperCase());
     setMediaWait(remaining.length ? `WAITING FOR ${remaining.join(" + ")}` : null);
-    primeAndRun();
+    if (shouldPrime) primeAndRun();
+    else engineRef.current?.start();
   }
 
   function playSources(
@@ -404,12 +470,13 @@ export function SmooshApp() {
     state.setPlaying(true);
     for (const id of ids) state.patchSlot(id, { paused: false });
     pendingPlayRef.current.clear();
+    const shouldPrime = options.forcePrime || !engine.primed;
 
     const waiting: Array<"a" | "b"> = [];
     for (const id of ids) {
       const result = hub.playWhenReady(
         id,
-        () => sourceStarted(id),
+        () => sourceStarted(id, shouldPrime),
         (error) => {
           pendingPlayRef.current.delete(id);
           setMediaWait(`SOURCE ${id.toUpperCase()} COULD NOT PLAY`);
@@ -430,7 +497,7 @@ export function SmooshApp() {
         : null,
     );
     engine.start();
-    const primed = options.forcePrime || !engine.primed ? engine.prime() : true;
+    const primed = shouldPrime ? engine.prime() : true;
     if (options.inject) engine.pulseInject();
     if (!primed && ids.length > 0 && waiting.length === 0) {
       setMediaWait(
@@ -440,10 +507,13 @@ export function SmooshApp() {
   }
 
   function ignite() {
-    playSources(["a", "b"], { forcePrime: true, inject: true });
+    playSources(["a", "b"], {
+      forcePrime: !processionRunningRef.current,
+      inject: true,
+    });
   }
 
-  function selectMode(mode: SmooshMode) {
+  function engageMode(mode: SmooshMode, preserveBuffer: boolean) {
     const engine = engineRef.current;
     const state = useSmoosh.getState();
     state.setMode(mode);
@@ -465,9 +535,190 @@ export function SmooshApp() {
     }
 
     playSources(ids, {
-      forcePrime: mode === "self" || (mode === "cross" && (!hasA || !hasB)),
+      forcePrime: shouldPrimeForMode(
+        mode,
+        preserveBuffer,
+        engine?.primed ?? false,
+        hasA,
+        hasB,
+      ),
       inject: false,
     });
+  }
+
+  function clearProcessionTimers() {
+    if (processionTimerRef.current) {
+      window.clearTimeout(processionTimerRef.current);
+      processionTimerRef.current = 0;
+    }
+    if (processionClockRef.current) {
+      window.clearInterval(processionClockRef.current);
+      processionClockRef.current = 0;
+    }
+  }
+
+  function stopProcession() {
+    processionRunIdRef.current += 1;
+    processionRunningRef.current = false;
+    clearProcessionTimers();
+    setProcessionRunning(false);
+    setActiveProcessionStep(null);
+    setProcessionRemaining(0);
+    setProcessionNeedSource(false);
+    setProcessionNotice(null);
+  }
+
+  function finishProcession(runId: number) {
+    if (runId !== processionRunIdRef.current) return;
+    processionRunningRef.current = false;
+    clearProcessionTimers();
+    setProcessionRunning(false);
+    setActiveProcessionStep(lastPlayableStepRef.current);
+    setProcessionRemaining(0);
+    setProcessionNeedSource(false);
+    setProcessionNotice(null);
+  }
+
+  function startProcessionClock(seconds: number) {
+    const deadline = performance.now() + seconds * 1000;
+    setProcessionRemaining(seconds);
+    if (processionClockRef.current) {
+      window.clearInterval(processionClockRef.current);
+    }
+    processionClockRef.current = window.setInterval(() => {
+      setProcessionRemaining(Math.max(0, (deadline - performance.now()) / 1000));
+    }, 100);
+  }
+
+  function runProcessionStep(index: number, runId: number, skipped: number) {
+    if (runId !== processionRunIdRef.current) return;
+    const steps = processionStepsRef.current;
+    if (steps.length < 1) {
+      stopProcession();
+      useSmoosh.getState().setToast("Add a mode to the procession first.");
+      return;
+    }
+
+    if (index >= steps.length) {
+      if (processionLoopRef.current) runProcessionStep(0, runId, skipped);
+      else finishProcession(runId);
+      return;
+    }
+
+    const step = steps[index];
+    if (!step) return;
+    clearProcessionTimers();
+    setActiveProcessionStep(index);
+
+    const state = useSmoosh.getState();
+    const hasA = state.slotA.kind !== "empty";
+    const hasB = state.slotB.kind !== "empty";
+    const missing = needsSourceForMode(
+      step.mode,
+      hasA,
+      hasB,
+      engineRef.current?.primed ?? false,
+    );
+
+    if (missing) {
+      if (skipped + 1 >= steps.length) {
+        stopProcession();
+        useSmoosh.getState().setToast("No procession step has the sources it needs.");
+        return;
+      }
+      setProcessionNeedSource(true);
+      setProcessionNotice(`SKIPPING ${MODE_META[step.mode].label}`);
+      startProcessionClock(0.45);
+      processionTimerRef.current = window.setTimeout(() => {
+        if (runId !== processionRunIdRef.current) return;
+        const next = nextProcessionIndex(
+          index,
+          processionStepsRef.current.length,
+          processionLoopRef.current,
+        );
+        if (next === null) finishProcession(runId);
+        else runProcessionStep(next, runId, skipped + 1);
+      }, 450);
+      return;
+    }
+
+    setProcessionNeedSource(false);
+    setProcessionNotice(null);
+    lastPlayableStepRef.current = index;
+    engageMode(step.mode, true);
+    startProcessionClock(step.duration);
+    processionTimerRef.current = window.setTimeout(() => {
+      if (runId !== processionRunIdRef.current) return;
+      const next = nextProcessionIndex(
+        index,
+        processionStepsRef.current.length,
+        processionLoopRef.current,
+      );
+      if (next === null) finishProcession(runId);
+      else runProcessionStep(next, runId, 0);
+    }, step.duration * 1000);
+  }
+
+  function playProcession() {
+    if (processionStepsRef.current.length < 1) {
+      useSmoosh.getState().setToast("Add a mode to the procession first.");
+      return;
+    }
+    clearProcessionTimers();
+    const runId = processionRunIdRef.current + 1;
+    processionRunIdRef.current = runId;
+    processionRunningRef.current = true;
+    lastPlayableStepRef.current = null;
+    setProcessionRunning(true);
+    setProcessionNeedSource(false);
+    setProcessionNotice(null);
+    runProcessionStep(0, runId, 0);
+  }
+
+  function selectMode(mode: SmooshMode) {
+    stopProcession();
+    engageMode(mode, false);
+  }
+
+  function replaceProcessionSteps(steps: ProcessionStep[]) {
+    processionStepsRef.current = steps;
+    setProcessionSteps(steps);
+  }
+
+  function addProcessionStep() {
+    const steps = processionStepsRef.current;
+    if (steps.length >= 8) return;
+    processionStepIdRef.current += 1;
+    replaceProcessionSteps([
+      ...steps,
+      {
+        id: `step-${Date.now()}-${processionStepIdRef.current}`,
+        mode: useSmoosh.getState().mode,
+        duration: 4,
+      },
+    ]);
+  }
+
+  function deleteProcessionStep(index: number) {
+    replaceProcessionSteps(
+      processionStepsRef.current.filter((_, stepIndex) => stepIndex !== index),
+    );
+  }
+
+  function changeProcessionDuration(index: number, duration: number) {
+    replaceProcessionSteps(
+      processionStepsRef.current.map((step, stepIndex) =>
+        stepIndex === index
+          ? { ...step, duration: clampProcessionDuration(duration) }
+          : step,
+      ),
+    );
+  }
+
+  function moveProcession(from: number, to: number) {
+    replaceProcessionSteps(
+      moveProcessionStep(processionStepsRef.current, from, to),
+    );
   }
 
   function beginInfect(event: PointerEvent<HTMLButtonElement>) {
@@ -509,7 +760,9 @@ export function SmooshApp() {
     hasB,
     bufferPrimed,
   );
-  const flowStatus = missingSource
+  const flowStatus = processionNeedSource
+    ? "NEED SOURCE"
+    : missingSource
     ? "NEED SOURCE"
     : infecting
       ? "INFECTING"
@@ -573,7 +826,9 @@ export function SmooshApp() {
       >
         <span className="flow-status-dot" aria-hidden />
         <strong>{flowStatus}</strong>
-        {mediaWait && <small>{mediaWait}</small>}
+        {(processionNotice || mediaWait) && (
+          <small>{processionNotice || mediaWait}</small>
+        )}
       </div>
 
       {!pv && (
@@ -602,6 +857,25 @@ export function SmooshApp() {
               </span>
             )}
           </div>
+
+          <ProcessionStrip
+            steps={processionSteps}
+            running={processionRunning}
+            activeIndex={activeProcessionStep}
+            remaining={processionRemaining}
+            loop={processionLoop}
+            onPlay={playProcession}
+            onStop={stopProcession}
+            onToggleLoop={() => {
+              const next = !processionLoopRef.current;
+              processionLoopRef.current = next;
+              setProcessionLoop(next);
+            }}
+            onAdd={addProcessionStep}
+            onDelete={deleteProcessionStep}
+            onDuration={changeProcessionDuration}
+            onMove={moveProcession}
+          />
 
           <div className="slots">
             <SlotCard
@@ -673,7 +947,10 @@ export function SmooshApp() {
       <div className="transport">
         <IconAction
           label={store.playing ? "Pause" : "Play"}
-          onClick={() => store.setPlaying(!store.playing)}
+          onClick={() => {
+            if (store.playing && processionRunningRef.current) stopProcession();
+            store.setPlaying(!store.playing);
+          }}
         >
           {store.playing ? <Pause /> : <Play />}
         </IconAction>
@@ -837,6 +1114,158 @@ export function SmooshApp() {
       {help && <HelpOverlay onClose={() => setHelp(false)} />}
       {!booted && <div className="boot">IGNITE</div>}
     </div>
+  );
+}
+
+function ProcessionStrip({
+  steps,
+  running,
+  activeIndex,
+  remaining,
+  loop,
+  onPlay,
+  onStop,
+  onToggleLoop,
+  onAdd,
+  onDelete,
+  onDuration,
+  onMove,
+}: {
+  steps: ProcessionStep[];
+  running: boolean;
+  activeIndex: number | null;
+  remaining: number;
+  loop: boolean;
+  onPlay: () => void;
+  onStop: () => void;
+  onToggleLoop: () => void;
+  onAdd: () => void;
+  onDelete: (index: number) => void;
+  onDuration: (index: number, duration: number) => void;
+  onMove: (from: number, to: number) => void;
+}) {
+  const dragFromRef = useRef<number | null>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (activeIndex === null) return;
+    const activeTile = trackRef.current?.children.item(activeIndex);
+    if (activeTile instanceof HTMLElement) {
+      activeTile.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+        inline: "center",
+      });
+    }
+  }, [activeIndex]);
+
+  return (
+    <section className="procession" aria-label="Procession mode succession">
+      <strong className="procession-title">PROCESSION</strong>
+      <div ref={trackRef} className="procession-track" aria-label="Procession steps">
+        {steps.map((step, index) => {
+          const active = activeIndex === index;
+          return (
+            <article
+              key={step.id}
+              className={cn("procession-step", active && "active")}
+              aria-current={active ? "step" : undefined}
+              draggable={!running}
+              onDragStart={() => {
+                dragFromRef.current = index;
+              }}
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => {
+                event.preventDefault();
+                if (dragFromRef.current !== null) {
+                  onMove(dragFromRef.current, index);
+                }
+                dragFromRef.current = null;
+              }}
+            >
+              <span className="procession-handle" aria-hidden title="Drag to reorder">
+                ⠿
+              </span>
+              <span className="procession-mode">{MODE_META[step.mode].label}</span>
+              <label className="procession-duration">
+                <span className="sr-only">Step {index + 1} duration in seconds</span>
+                <input
+                  aria-label={`Step ${index + 1} duration in seconds`}
+                  type="number"
+                  min={0.5}
+                  max={30}
+                  step={0.5}
+                  value={step.duration}
+                  disabled={running}
+                  onChange={(event) =>
+                    onDuration(index, Number(event.target.value))
+                  }
+                />
+                <span>s</span>
+              </label>
+              {active && running && (
+                <small className="procession-remaining">
+                  {remaining.toFixed(1)}s LEFT
+                </small>
+              )}
+              <button
+                type="button"
+                className="procession-delete"
+                aria-label={`Delete step ${index + 1}`}
+                disabled={running}
+                onClick={() => onDelete(index)}
+              >
+                ×
+              </button>
+              <div className="procession-nudges" aria-label="Reorder step">
+                <button
+                  type="button"
+                  aria-label={`Move step ${index + 1} left`}
+                  disabled={running || index === 0}
+                  onClick={() => onMove(index, index - 1)}
+                >
+                  ‹
+                </button>
+                <button
+                  type="button"
+                  aria-label={`Move step ${index + 1} right`}
+                  disabled={running || index === steps.length - 1}
+                  onClick={() => onMove(index, index + 1)}
+                >
+                  ›
+                </button>
+              </div>
+            </article>
+          );
+        })}
+        {steps.length === 0 && <span className="procession-empty">NO STEPS YET</span>}
+      </div>
+      <div className="procession-controls">
+        <button type="button" onClick={onPlay} disabled={running || steps.length === 0}>
+          PLAY PROCESSION
+        </button>
+        <button type="button" onClick={onStop} disabled={!running && activeIndex === null}>
+          STOP PROCESSION
+        </button>
+        <button
+          type="button"
+          className={cn(loop && "on")}
+          aria-pressed={loop}
+          onClick={onToggleLoop}
+        >
+          LOOP
+        </button>
+        <button
+          type="button"
+          className="procession-add"
+          aria-label="Add selected mode to procession"
+          disabled={running || steps.length >= 8}
+          onClick={onAdd}
+        >
+          +
+        </button>
+      </div>
+    </section>
   );
 }
 

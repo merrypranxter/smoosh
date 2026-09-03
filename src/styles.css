@@ -359,10 +359,258 @@ body {
   white-space: nowrap;
 }
 
+.procession {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(180px, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  padding: 7px;
+  border: 1px solid color-mix(in oklab, var(--color-pink) 38%, transparent);
+  border-radius: 14px;
+  background: color-mix(in oklab, var(--color-ink-2) 94%, var(--color-pink));
+}
+
+.procession-title {
+  color: var(--color-pink);
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.14em;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+
+.procession-track {
+  min-width: 0;
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 1px;
+  scrollbar-width: none;
+  scroll-snap-type: x proximity;
+  overscroll-behavior-inline: contain;
+}
+
+.procession-track::-webkit-scrollbar {
+  display: none;
+}
+
+.procession-step {
+  position: relative;
+  flex: 0 0 126px;
+  height: 66px;
+  display: grid;
+  grid-template-columns: 13px minmax(0, 1fr) 34px;
+  grid-template-rows: 1fr 22px;
+  gap: 2px 4px;
+  align-items: center;
+  padding: 6px 22px 5px 5px;
+  overflow: hidden;
+  scroll-snap-align: start;
+  border: 1px solid color-mix(in oklab, var(--color-uv) 42%, transparent);
+  border-radius: 10px;
+  background: var(--color-ink);
+  color: var(--color-paper);
+}
+
+.procession-step[draggable="true"] {
+  cursor: grab;
+}
+
+.procession-step.active {
+  border-color: var(--color-lime);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in oklab, var(--color-lime) 45%, transparent),
+    0 0 12px color-mix(in oklab, var(--color-lime) 24%, transparent);
+}
+
+.procession-handle {
+  grid-row: 1 / -1;
+  color: var(--color-uv);
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.procession-mode {
+  grid-column: 2 / 4;
+  align-self: end;
+  overflow-wrap: anywhere;
+  font-size: 0.56rem;
+  font-weight: 850;
+  letter-spacing: 0.055em;
+  line-height: 1.05;
+}
+
+.procession-duration {
+  grid-column: 2;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--color-cyan);
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+}
+
+.procession-duration input {
+  width: 38px;
+  height: 20px;
+  border: 1px solid color-mix(in oklab, var(--color-cyan) 35%, transparent);
+  border-radius: 6px;
+  background: var(--color-ink-2);
+  color: var(--color-cyan);
+  font: inherit;
+  padding: 0 3px;
+}
+
+.procession-duration input:disabled {
+  opacity: 0.6;
+}
+
+.procession-remaining {
+  grid-column: 3;
+  color: var(--color-yellow);
+  font-family: var(--font-mono);
+  font-size: 0.48rem;
+  line-height: 1;
+  text-align: right;
+}
+
+.procession-delete {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: var(--color-ink-3);
+  color: var(--color-fog);
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.procession-nudges {
+  display: none;
+}
+
+.procession-empty {
+  min-width: 126px;
+  align-self: center;
+  color: var(--color-fog);
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+}
+
+.procession-controls {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.procession-controls button {
+  min-height: 38px;
+  padding: 0 7px;
+  border: 1px solid color-mix(in oklab, var(--color-chrome) 24%, transparent);
+  border-radius: 9px;
+  background: var(--color-ink-3);
+  color: var(--color-paper);
+  font-size: 0.53rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.procession-controls button.on {
+  border-color: var(--color-cyan);
+  color: var(--color-cyan);
+}
+
+.procession-controls button:disabled,
+.procession-delete:disabled,
+.procession-nudges button:disabled {
+  cursor: default;
+  opacity: 0.38;
+}
+
+.procession-controls .procession-add {
+  min-width: 38px;
+  color: var(--color-yellow);
+  font-size: 1.2rem;
+}
+
 @media (max-width: 719px) {
   .mode-oracle {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .procession {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      "title controls"
+      "track track";
+    padding: 6px;
+  }
+
+  .procession-title {
+    grid-area: title;
+    writing-mode: horizontal-tb;
+    transform: none;
+  }
+
+  .procession-track {
+    grid-area: track;
+    width: calc(100% + 12px);
+    margin-inline: -6px;
+    padding-inline: 6px;
+    scroll-padding-inline: 6px;
+  }
+
+  .procession-controls {
+    grid-area: controls;
+    justify-self: end;
+  }
+
+  .procession-controls button {
+    min-height: 32px;
+    padding-inline: 5px;
+    font-size: 0.48rem;
+  }
+
+  .procession-controls .procession-add {
+    min-width: 32px;
+    font-size: 1rem;
+  }
+
+  .procession-step {
+    flex-basis: 132px;
+    height: 70px;
+    padding-bottom: 7px;
+  }
+
+  .procession-nudges {
+    position: absolute;
+    right: 3px;
+    bottom: 3px;
+    display: flex;
+    gap: 2px;
+  }
+
+  .procession-nudges button {
+    width: 18px;
+    height: 18px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: var(--color-ink-3);
+    color: var(--color-fog);
+    line-height: 1;
   }
 }
 
@@ -868,12 +1116,12 @@ body {
 
 @media (max-width: 719px) {
   .app-shell {
-    padding-bottom: 0;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 116px);
     gap: 6px;
   }
 
   .stage {
-    max-height: min(54dvh, 620px);
+    max-height: min(54dvh, calc(100dvh - 180px), 620px);
   }
 
   .mode-row {
@@ -906,16 +1154,19 @@ body {
   }
 
   .transport {
-    position: sticky;
+    position: fixed;
     z-index: 30;
+    left: 0;
+    right: 0;
     bottom: 0;
     grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 4px;
-    margin-inline: -12px;
+    margin: 0;
     padding:
       6px
-      12px
+      max(12px, env(safe-area-inset-right, 0px))
       calc(env(safe-area-inset-bottom, 0px) + 6px);
+    padding-left: max(12px, env(safe-area-inset-left, 0px));
     background: color-mix(in oklab, var(--color-ink) 90%, transparent);
     border-top: 1px solid color-mix(in oklab, var(--color-uv) 46%, transparent);
     backdrop-filter: blur(14px);
@@ -951,7 +1202,7 @@ body {
   }
 
   .sheet {
-    margin-bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
+    margin-bottom: 0;
   }
 }
 
