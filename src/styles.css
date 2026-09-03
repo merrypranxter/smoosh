@@ -453,7 +453,7 @@ body {
 
 .procession-duration input {
   width: 38px;
-  height: 20px;
+  height: 26px;
   border: 1px solid color-mix(in oklab, var(--color-cyan) 35%, transparent);
   border-radius: 6px;
   background: var(--color-ink-2);

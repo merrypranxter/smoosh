@@ -1192,14 +1192,18 @@ function ProcessionStrip({
                 <input
                   aria-label={`Step ${index + 1} duration in seconds`}
                   type="number"
+                  inputMode="decimal"
                   min={0.5}
                   max={30}
                   step={0.5}
-                  value={step.duration}
+                  defaultValue={step.duration}
                   disabled={running}
-                  onChange={(event) =>
+                  onBlur={(event) =>
                     onDuration(index, Number(event.target.value))
                   }
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") event.currentTarget.blur();
+                  }}
                 />
                 <span>s</span>
               </label>
