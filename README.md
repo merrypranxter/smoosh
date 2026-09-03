@@ -25,6 +25,12 @@ All processing is local. Files never leave the device. Object URLs, camera track
 
 ## Controls
 
+The always-visible quick row exposes the three performance controls used during a
+live smoosh: **FLOW SCALE** drives motion displacement, **DECAY** is the inverse of
+buffer persistence, and **MIX** blends raw A with the smashed output. Pressing
+SMOOSH starts both sources, primes the frame history, and injects immediately;
+holding it keeps the stronger infection engaged without stopping on release.
+
 | Control | What it drives |
 | --- | --- |
 | SOURCE REFRESH | Mix of current A into the warped feedback (`uRefresh`) |

@@ -35,6 +35,7 @@ export interface EngineParams {
   sourceRefresh: number;
   persistence: number;
   motionGain: number;
+  mix: number;
   motionSensitivity: number;
   blockScale: number;
   cleanBleed: number;
@@ -65,6 +66,7 @@ export const DEFAULT_PARAMS: EngineParams = {
   sourceRefresh: 0.2,
   persistence: 0.92,
   motionGain: 1.45,
+  mix: 1,
   motionSensitivity: 0.07,
   blockScale: 1.15,
   cleanBleed: 0.04,
@@ -142,6 +144,7 @@ export const SAFE_RANDOM_RANGES: Record<
   sourceRefresh: [0.04, 0.55],
   persistence: [0.72, 0.98],
   motionGain: [0.45, 2.6],
+  mix: [0.45, 1],
   motionSensitivity: [0.02, 0.22],
   blockScale: [0.7, 2.2],
   cleanBleed: [0, 0.18],

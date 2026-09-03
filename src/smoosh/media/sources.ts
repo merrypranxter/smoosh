@@ -1,6 +1,11 @@
 import { DemoSource } from "./demo-source";
 import { currentCamera, stopCamera } from "./camera";
-import { mediaSize, type Drawable } from "@/smoosh/engine/draw";
+import {
+  drawCover,
+  mediaReady,
+  mediaSize,
+  type Drawable,
+} from "@/smoosh/engine/draw";
 import type { SlotId, SourceKind } from "@/smoosh/types";
 
 export interface SlotMedia {
@@ -43,6 +48,7 @@ export class MediaHub {
   a: SlotMedia;
   b: SlotMedia;
   private urls = new Set<string>();
+  private waiting = new Map<HTMLVideoElement, () => void>();
 
   constructor() {
     this.a = this.makeSlot("a");
@@ -92,6 +98,7 @@ export class MediaHub {
   }
 
   private stopVideo(slot: SlotMedia): void {
+    this.waiting.get(slot.video)?.();
     try {
       slot.video.pause();
     } catch {
@@ -182,6 +189,68 @@ export class MediaHub {
     slot.kind = "camera";
     slot.cameraOwner = true;
     slot.fileName = "live-camera";
+  }
+
+  playWhenReady(
+    id: SlotId,
+    onPlaying: () => void,
+    onError: (error: Error) => void,
+  ): "ready" | "waiting" | "static" | "missing" {
+    const slot = id === "a" ? this.a : this.b;
+    if (slot.kind === "empty") return "missing";
+    if (slot.kind === "demo") {
+      if (slot.demo) slot.demo.paused = false;
+      onPlaying();
+      return "static";
+    }
+    if (slot.kind === "image") {
+      onPlaying();
+      return "static";
+    }
+
+    const video = slot.video;
+    this.waiting.get(video)?.();
+
+    let settled = false;
+    const cleanup = () => {
+      video.removeEventListener("loadeddata", attempt);
+      video.removeEventListener("canplay", attempt);
+      if (this.waiting.get(video) === cleanup) this.waiting.delete(video);
+    };
+    const attempt = () => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      void video.play().then(onPlaying).catch((reason: unknown) => {
+        onError(
+          reason instanceof Error
+            ? reason
+            : new Error("The browser refused to start this source."),
+        );
+      });
+    };
+
+    if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+      attempt();
+      return "ready";
+    }
+
+    video.addEventListener("loadeddata", attempt);
+    video.addEventListener("canplay", attempt);
+    this.waiting.set(video, cleanup);
+    return "waiting";
+  }
+
+  thumbnail(id: SlotId, size = 72): string | null {
+    const drawable = this.drawable(id);
+    if (!mediaReady(drawable)) return null;
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext("2d", { alpha: false });
+    if (!ctx) return null;
+    drawCover(ctx, drawable as Drawable, size, size, "fill", false);
+    return canvas.toDataURL("image/jpeg", 0.72);
   }
 
   private hooked = new WeakSet<HTMLVideoElement>();

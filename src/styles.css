@@ -248,6 +248,50 @@ body {
   z-index: 3;
 }
 
+.flow-status {
+  width: min(100%, 520px);
+  min-height: 28px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--color-fog);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+}
+
+.flow-status strong {
+  color: var(--color-paper);
+  white-space: nowrap;
+}
+
+.flow-status small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  opacity: 0.78;
+}
+
+.flow-status-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 99px;
+  background: var(--color-orange);
+  box-shadow: 0 0 10px color-mix(in oklab, var(--color-orange) 70%, transparent);
+}
+
+.flow-status.flow-locked .flow-status-dot {
+  background: var(--color-lime);
+  box-shadow: 0 0 12px color-mix(in oklab, var(--color-lime) 80%, transparent);
+}
+
+.flow-status.infecting .flow-status-dot {
+  background: var(--color-pink);
+  box-shadow: 0 0 14px var(--color-pink);
+  animation: blink 0.38s steps(2) infinite;
+}
+
 .mode-row {
   display: flex;
   gap: 6px;
@@ -255,6 +299,9 @@ body {
   padding-bottom: 2px;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: 2px;
+  overscroll-behavior-inline: contain;
 }
 
 .mode-row::-webkit-scrollbar {
@@ -263,6 +310,7 @@ body {
 
 .mode-tab {
   flex: 0 0 auto;
+  scroll-snap-align: start;
   min-height: 44px;
   padding: 0 12px;
   border-radius: 999px;
@@ -272,6 +320,7 @@ body {
   font-size: 0.68rem;
   font-weight: 800;
   letter-spacing: 0.08em;
+  white-space: nowrap;
 }
 
 .mode-tab.on {
@@ -290,11 +339,13 @@ body {
 
 .slots {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
 .slot {
+  min-width: 0;
+  overflow: hidden;
   border-radius: 16px;
   padding: 8px;
   background: var(--color-ink-2);
@@ -311,16 +362,54 @@ body {
 
 .slot-head {
   width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 8px;
   background: none;
   border: 0;
   color: inherit;
   min-height: 44px;
-  padding: 4px;
+  padding: 2px 4px;
   text-align: left;
+}
+
+.slot-thumb {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 9px;
+  background: var(--color-ink);
+  color: var(--color-fog);
+  border: 1px solid color-mix(in oklab, var(--color-chrome) 22%, transparent);
+}
+
+.slot-thumb img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.slot-thumb svg {
+  width: 19px;
+  height: 19px;
+}
+
+.slot-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.slot-caret {
+  color: var(--color-fog);
+  font-size: 1.1rem;
+  line-height: 1;
 }
 
 .slot-head strong {
@@ -340,16 +429,17 @@ body {
   font-style: normal;
   font-size: 0.7rem;
   color: var(--color-fog);
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
   max-width: 100%;
-  white-space: nowrap;
+  white-space: normal;
+  line-height: 1.2;
 }
 
 .slot-status {
   font-size: 0.65rem;
   color: var(--color-fog);
   padding: 0 4px 4px;
+  overflow-wrap: anywhere;
 }
 
 .slot-actions {
@@ -381,6 +471,83 @@ body {
 .t-btn svg {
   width: 16px;
   height: 16px;
+}
+
+.quick-controls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  padding: 7px;
+  border: 1px solid color-mix(in oklab, var(--color-uv) 40%, transparent);
+  border-radius: 14px;
+  background: color-mix(in oklab, var(--color-ink-2) 92%, var(--color-uv));
+}
+
+.quick-knob {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.quick-knob > span {
+  min-width: 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+  font-size: 0.61rem;
+  font-weight: 850;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.quick-knob b {
+  color: var(--color-cyan);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.quick-knob input[type="range"] {
+  width: 100%;
+  height: 26px;
+  margin: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+}
+
+.quick-knob input[type="range"]::-webkit-slider-runnable-track {
+  height: 5px;
+  border-radius: 99px;
+  background: color-mix(in oklab, var(--color-uv) 62%, var(--color-ink));
+}
+
+.quick-knob input[type="range"]::-webkit-slider-thumb {
+  width: 24px;
+  height: 24px;
+  margin-top: -10px;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 2px solid var(--color-ink);
+  border-radius: 8px;
+  background: var(--color-yellow);
+  box-shadow: 0 0 0 1px var(--color-pink);
+}
+
+.quick-knob input[type="range"]::-moz-range-track {
+  height: 5px;
+  border-radius: 99px;
+  background: color-mix(in oklab, var(--color-uv) 62%, var(--color-ink));
+}
+
+.quick-knob input[type="range"]::-moz-range-thumb {
+  width: 21px;
+  height: 21px;
+  border: 2px solid var(--color-ink);
+  border-radius: 8px;
+  background: var(--color-yellow);
+  box-shadow: 0 0 0 1px var(--color-pink);
 }
 
 .transport {
@@ -430,6 +597,16 @@ body {
   letter-spacing: -0.04em;
   transform: skewX(-8deg);
   box-shadow: 0 8px 24px color-mix(in oklab, var(--color-pink) 40%, transparent);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.hit-btn.infecting {
+  filter: saturate(1.35) brightness(1.08);
+  box-shadow:
+    0 0 0 2px var(--color-cyan),
+    0 8px 34px color-mix(in oklab, var(--color-pink) 70%, transparent);
 }
 
 .sheet {
@@ -660,6 +837,95 @@ body {
   }
 }
 
+@media (max-width: 719px) {
+  .app-shell {
+    padding-bottom: 0;
+    gap: 6px;
+  }
+
+  .stage {
+    max-height: min(54dvh, 620px);
+  }
+
+  .mode-row {
+    width: calc(100% + 24px);
+    margin-inline: -12px;
+    padding-inline: 12px;
+    scroll-padding-inline: 12px;
+  }
+
+  .slots {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .slot {
+    min-height: 62px;
+  }
+
+  .slot-head {
+    min-height: 48px;
+  }
+
+  .quick-controls {
+    gap: 4px;
+    padding: 6px;
+  }
+
+  .quick-knob > span {
+    font-size: 0.56rem;
+    letter-spacing: 0.035em;
+  }
+
+  .transport {
+    position: sticky;
+    z-index: 30;
+    bottom: 0;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 4px;
+    margin-inline: -12px;
+    padding:
+      6px
+      12px
+      calc(env(safe-area-inset-bottom, 0px) + 6px);
+    background: color-mix(in oklab, var(--color-ink) 90%, transparent);
+    border-top: 1px solid color-mix(in oklab, var(--color-uv) 46%, transparent);
+    backdrop-filter: blur(14px);
+  }
+
+  .transport .hit-btn {
+    grid-column: span 3;
+  }
+
+  .t-btn,
+  .hit-btn {
+    min-height: 46px;
+  }
+
+  .t-btn {
+    border-radius: 11px;
+    font-size: 0.52rem;
+    letter-spacing: 0;
+  }
+
+  .t-btn svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  .hit-btn {
+    border-radius: 13px;
+    font-size: 1.45rem;
+  }
+
+  .toast {
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 112px);
+  }
+
+  .sheet {
+    margin-bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
+  }
+}
+
 @media (min-width: 860px) {
   .app-shell {
     padding-left: 24px;
@@ -668,6 +934,9 @@ body {
   .stage {
     width: min(100%, 640px);
     max-height: 70dvh;
+  }
+  .flow-status {
+    width: min(100%, 640px);
   }
   .transport {
     grid-template-columns: repeat(8, 1fr);

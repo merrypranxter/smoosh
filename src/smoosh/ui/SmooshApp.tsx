@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type PointerEvent,
+  type ReactNode,
+} from "react";
 import {
   Aperture,
   ArrowLeftRight,
@@ -54,8 +61,16 @@ export function SmooshApp() {
   const recorderRef = useRef<OutputRecorder | null>(null);
   const clipRef = useRef<ClipRecorder | null>(null);
   const recTimer = useRef<number>(0);
+  const pendingPlayRef = useRef(new Set<"a" | "b">());
 
   const [booted, setBooted] = useState(false);
+  const [bufferPrimed, setBufferPrimed] = useState(false);
+  const [infecting, setInfecting] = useState(false);
+  const [mediaWait, setMediaWait] = useState<string | null>(null);
+  const [thumbs, setThumbs] = useState<{ a: string | null; b: string | null }>({
+    a: null,
+    b: null,
+  });
   const [help, setHelp] = useState(false);
   const [clipSlot, setClipSlot] = useState<"a" | "b" | null>(null);
   const [clipMs, setClipMs] = useState(0);
@@ -80,7 +95,7 @@ export function SmooshApp() {
   useEffect(() => {
     const hub = new MediaHub();
     hubRef.current = hub;
-    const engine = new SmooshEngine(hub);
+    const engine = new SmooshEngine(hub, setBufferPrimed);
     engineRef.current = engine;
     recorderRef.current = new OutputRecorder();
     clipRef.current = new ClipRecorder();
@@ -96,13 +111,17 @@ export function SmooshApp() {
           kind: "demo",
           fileName: "demo-pixels",
           error: null,
+          paused: false,
         });
         useSmoosh.getState().patchSlot("b", {
           kind: "demo",
           fileName: "demo-motion",
           error: null,
+          paused: false,
         });
+        useSmoosh.getState().setPlaying(true);
         useSmoosh.getState().setSourceAspect(hub.aspect("a"));
+        setThumbs({ a: hub.thumbnail("a"), b: hub.thumbnail("b") });
       } catch (err) {
         useSmoosh.getState().setToast(err instanceof Error ? err.message : String(err));
       }
@@ -111,6 +130,7 @@ export function SmooshApp() {
       if (canvas) {
         const err = engine.attach(canvas);
         if (err) useSmoosh.getState().setEngineError(err);
+        engine.prime();
         engine.start();
       }
       setBooted(true);
@@ -179,8 +199,9 @@ export function SmooshApp() {
         paused: false,
       });
       if (id === "a") useSmoosh.getState().setSourceAspect(hub.aspect("a"));
+      setThumbs((current) => ({ ...current, [id]: hub.thumbnail(id) }));
       useSmoosh.getState().setPlaying(true);
-      await slot.video.play().catch(() => undefined);
+      void ignite();
     } catch (err) {
       useSmoosh.getState().patchSlot(id, {
         error: err instanceof Error ? err.message : String(err),
@@ -197,10 +218,14 @@ export function SmooshApp() {
       kind: "demo",
       fileName: id === "a" ? "demo-pixels" : "demo-motion",
       error: null,
+      paused: false,
     });
+    setThumbs((current) => ({ ...current, [id]: hub.thumbnail(id) }));
+    useSmoosh.getState().setPlaying(true);
+    void ignite();
   }
 
-  async function useCamera(id: "a" | "b") {
+  async function openCamera(id: "a" | "b") {
     if (!caps.camera) {
       useSmoosh.getState().setToast(
         "Camera API is missing. Open SMOOSH on HTTPS in Safari or Chrome, then allow the camera.",
@@ -230,6 +255,7 @@ export function SmooshApp() {
         fileName: "live-camera",
         error: null,
         mirror: facing === "user",
+        paused: false,
       });
       if (other.kind === "camera") {
         useSmoosh.getState().patchSlot(id === "a" ? "b" : "a", {
@@ -237,6 +263,9 @@ export function SmooshApp() {
           fileName: null,
         });
       }
+      setThumbs((current) => ({ ...current, [id]: hub.thumbnail(id) }));
+      useSmoosh.getState().setPlaying(true);
+      void ignite();
     } catch (err) {
       useSmoosh.getState().setToast(err instanceof Error ? err.message : String(err));
     }
@@ -278,6 +307,7 @@ export function SmooshApp() {
       duration: 0,
       error: null,
     });
+    setThumbs((current) => ({ ...current, [id]: null }));
   }
 
   function swap() {
@@ -285,6 +315,7 @@ export function SmooshApp() {
     useSmoosh.getState().swapSlotsMeta();
     const hub = hubRef.current;
     if (hub) useSmoosh.getState().setSourceAspect(hub.aspect("a"));
+    setThumbs((current) => ({ a: current.b, b: current.a }));
   }
 
   async function toggleRecord() {
@@ -345,13 +376,104 @@ export function SmooshApp() {
     }
   }
 
-  function smooshHit() {
-    if (!store.playing) useSmoosh.getState().setPlaying(true);
-    engineRef.current?.pulseInject();
-    engineRef.current?.reseed();
+  function primeAndRun(): boolean {
+    const engine = engineRef.current;
+    if (!engine) return false;
+    engine.start();
+    return engine.prime();
+  }
+
+  function sourceStarted(id: "a" | "b") {
+    pendingPlayRef.current.delete(id);
+    const remaining = [...pendingPlayRef.current].map((slot) => slot.toUpperCase());
+    setMediaWait(remaining.length ? `WAITING FOR ${remaining.join(" + ")}` : null);
+    primeAndRun();
+  }
+
+  function ignite() {
+    const hub = hubRef.current;
+    const engine = engineRef.current;
+    if (!hub || !engine) return;
+
+    const state = useSmoosh.getState();
+    state.setPlaying(true);
+    state.patchSlot("a", { paused: false });
+    state.patchSlot("b", { paused: false });
+    pendingPlayRef.current.clear();
+
+    const waiting: Array<"a" | "b"> = [];
+    for (const id of ["a", "b"] as const) {
+      const result = hub.playWhenReady(
+        id,
+        () => sourceStarted(id),
+        (error) => {
+          pendingPlayRef.current.delete(id);
+          setMediaWait(`SOURCE ${id.toUpperCase()} COULD NOT PLAY`);
+          useSmoosh.getState().setToast(
+            `Source ${id.toUpperCase()} did not start: ${error.message}`,
+          );
+        },
+      );
+      if (result === "waiting") {
+        waiting.push(id);
+        pendingPlayRef.current.add(id);
+      }
+    }
+
+    setMediaWait(
+      waiting.length
+        ? `WAITING FOR ${waiting.map((id) => id.toUpperCase()).join(" + ")}`
+        : null,
+    );
+    engine.start();
+    const primed = engine.prime();
+    engine.pulseInject();
+    if (!primed && hub.a.kind !== "empty" && waiting.length === 0) {
+      setMediaWait("WAITING FOR SOURCE A FRAME");
+    }
+  }
+
+  function beginInfect(event: PointerEvent<HTMLButtonElement>) {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setInfecting(true);
+    engineRef.current?.setInfecting(true);
+    void ignite();
+  }
+
+  function endInfect(event?: PointerEvent<HTMLButtonElement>) {
+    if (event?.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    setInfecting(false);
+    engineRef.current?.setInfecting(false);
+  }
+
+  function beginKeyboardInfect(event: KeyboardEvent<HTMLButtonElement>) {
+    if ((event.key !== "Enter" && event.key !== " ") || event.repeat) return;
+    setInfecting(true);
+    engineRef.current?.setInfecting(true);
+    void ignite();
+  }
+
+  function endKeyboardInfect(event: KeyboardEvent<HTMLButtonElement>) {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    setInfecting(false);
+    engineRef.current?.setInfecting(false);
   }
 
   const pv = store.performanceView;
+  const needsB = store.mode !== "self";
+  const missingSource =
+    store.slotA.kind === "empty" || (needsB && store.slotB.kind === "empty");
+  const flowStatus = missingSource
+    ? "NEED SOURCE"
+    : infecting
+      ? "INFECTING"
+      : bufferPrimed && booted && store.playing && !mediaWait
+        ? "FLOW LOCKED"
+        : "BUFFER EMPTY";
 
   return (
     <div className="app-shell">
@@ -402,6 +524,16 @@ export function SmooshApp() {
         </div>
       </div>
 
+      <div
+        className={cn("flow-status", flowStatus.toLowerCase().replace(/\s+/g, "-"))}
+        role="status"
+        aria-live="polite"
+      >
+        <span className="flow-status-dot" aria-hidden />
+        <strong>{flowStatus}</strong>
+        {mediaWait && <small>{mediaWait}</small>}
+      </div>
+
       {!pv && (
         <>
           <div className="mode-row" role="tablist" aria-label="Modes">
@@ -425,9 +557,10 @@ export function SmooshApp() {
               title="A · PIXELS"
               tone="pink"
               slot={store.slotA}
+              thumbnail={thumbs.a}
               onUpload={() => fileARef.current?.click()}
               onDemo={() => void loadDemo("a")}
-              onCamera={() => void useCamera("a")}
+              onCamera={() => void openCamera("a")}
               onClip={() => void beginClip("a")}
               onClear={() => clearSlot("a")}
               onPause={() =>
@@ -454,9 +587,10 @@ export function SmooshApp() {
               title="B · MOTION"
               tone="cyan"
               slot={store.slotB}
+              thumbnail={thumbs.b}
               onUpload={() => fileBRef.current?.click()}
               onDemo={() => void loadDemo("b")}
-              onCamera={() => void useCamera("b")}
+              onCamera={() => void openCamera("b")}
               onClip={() => void beginClip("b")}
               onClear={() => clearSlot("b")}
               onPause={() =>
@@ -483,6 +617,8 @@ export function SmooshApp() {
         </>
       )}
 
+      {!pv && <QuickControls />}
+
       <div className="transport">
         <IconAction
           label={store.playing ? "Pause" : "Play"}
@@ -490,7 +626,19 @@ export function SmooshApp() {
         >
           {store.playing ? <Pause /> : <Play />}
         </IconAction>
-        <button type="button" className="hit-btn" onClick={smooshHit}>
+        <button
+          type="button"
+          className={cn("hit-btn", infecting && "infecting")}
+          onPointerDown={beginInfect}
+          onPointerUp={endInfect}
+          onPointerCancel={endInfect}
+          onKeyDown={beginKeyboardInfect}
+          onKeyUp={endKeyboardInfect}
+          onClick={(event) => {
+            if (event.detail === 0) void ignite();
+          }}
+          aria-pressed={infecting}
+        >
           SMOOSH
         </button>
         <IconAction
@@ -667,6 +815,7 @@ function SlotCard({
   title,
   tone,
   slot,
+  thumbnail,
   onUpload,
   onDemo,
   onCamera,
@@ -682,6 +831,7 @@ function SlotCard({
   title: string;
   tone: "pink" | "cyan";
   slot: ReturnType<typeof useSmoosh.getState>["slotA"];
+  thumbnail: string | null;
   onUpload: () => void;
   onDemo: () => void;
   onCamera: () => void;
@@ -697,8 +847,16 @@ function SlotCard({
   return (
     <section className={cn("slot", tone)}>
       <button type="button" className="slot-head" onClick={() => setOpen(!open)}>
-        <strong>{title}</strong>
-        <em>{slot.fileName ?? "empty"}</em>
+        <span className="slot-thumb" aria-hidden>
+          {thumbnail ? <img src={thumbnail} alt="" /> : <Aperture />}
+        </span>
+        <span className="slot-copy">
+          <strong>{title}</strong>
+          <em title={slot.fileName ?? undefined}>
+            {shortSourceName(slot.fileName)}
+          </em>
+        </span>
+        <span className="slot-caret" aria-hidden>{open ? "−" : "+"}</span>
       </button>
       <div className="slot-status">
         {slot.kind} {slot.paused ? "· paused" : ""} {slot.error ? `· ${slot.error}` : ""}
@@ -778,6 +936,55 @@ function SlotCard({
           )}
         </div>
       )}
+    </section>
+  );
+}
+
+function QuickControls() {
+  const store = useSmoosh();
+  const p = store.params;
+  const decay = 1 - p.persistence;
+
+  return (
+    <section className="quick-controls" aria-label="Core mosh controls">
+      <label className="quick-knob">
+        <span>FLOW SCALE <b>{p.motionGain.toFixed(2)}</b></span>
+        <input
+          aria-label="Flow scale"
+          type="range"
+          min={0}
+          max={3.5}
+          step={0.01}
+          value={p.motionGain}
+          onChange={(event) => store.setParam("motionGain", Number(event.target.value))}
+        />
+      </label>
+      <label className="quick-knob">
+        <span>DECAY <b>{Math.round(decay * 100)}%</b></span>
+        <input
+          aria-label="Decay"
+          type="range"
+          min={0.005}
+          max={0.8}
+          step={0.005}
+          value={decay}
+          onChange={(event) =>
+            store.setParam("persistence", 1 - Number(event.target.value))
+          }
+        />
+      </label>
+      <label className="quick-knob">
+        <span>MIX <b>{Math.round(p.mix * 100)}%</b></span>
+        <input
+          aria-label="Mix"
+          type="range"
+          min={0}
+          max={1}
+          step={0.01}
+          value={p.mix}
+          onChange={(event) => store.setParam("mix", Number(event.target.value))}
+        />
+      </label>
     </section>
   );
 }
@@ -1123,4 +1330,12 @@ function formatMs(ms: number): string {
   const m = Math.floor(s / 60);
   const r = s % 60;
   return `${m}:${String(r).padStart(2, "0")}`;
+}
+
+function shortSourceName(fileName: string | null): string {
+  if (!fileName) return "empty";
+  const withoutExtension = fileName.replace(/\.[^.]+$/, "");
+  return withoutExtension.length > 30
+    ? `${withoutExtension.slice(0, 27)}…`
+    : withoutExtension;
 }

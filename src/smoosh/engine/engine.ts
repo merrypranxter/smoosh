@@ -14,11 +14,15 @@ export class SmooshEngine {
   running = false;
   private ring: FrameRing;
   private boostDecay = 0;
+  private infecting = false;
   private canvas: HTMLCanvasElement | null = null;
   private cleanPulse = 0;
+  private lastPrimed = false;
+  private onPrimeChange?: (primed: boolean) => void;
 
-  constructor(hub: MediaHub) {
+  constructor(hub: MediaHub, onPrimeChange?: (primed: boolean) => void) {
     this.hub = hub;
+    this.onPrimeChange = onPrimeChange;
     const mobile = isMobileClient();
     this.ring = new FrameRing(mobile ? 8 : 12, 240, 426);
   }
@@ -59,18 +63,53 @@ export class SmooshEngine {
 
   reseed(): void {
     this.renderer?.reseed();
+    this.syncPrimeState();
   }
 
   clear(): void {
     this.renderer?.clearFeedback();
+    this.syncPrimeState();
   }
 
   pulseInject(): void {
     this.boostDecay = 1;
   }
 
+  setInfecting(active: boolean): void {
+    this.infecting = active;
+    if (active) this.pulseInject();
+  }
+
   pulseClean(): void {
     this.cleanPulse = 1;
+  }
+
+  prime(): boolean {
+    const s = useSmoosh.getState();
+    const r = this.renderer;
+    if (!r) return false;
+    const aspect = aspectValue(s.aspect, this.hub.aspect("a") || s.sourceAspect);
+    r.setOutput(aspect, s.quality);
+    const pixels = this.hub.drawable("a");
+    const motion = s.mode === "self" ? pixels : this.hub.drawable("b");
+    const primed = r.prime({
+      pixels,
+      motion,
+      pixelsB: this.hub.drawable("b"),
+      pixelsMirror: s.slotA.mirror,
+      motionMirror: s.mode === "self" ? s.slotA.mirror : s.slotB.mirror,
+      pixelsFill: s.slotA.fill,
+      motionFill: s.mode === "self" ? s.slotA.fill : s.slotB.fill,
+    });
+    this.syncPrimeState();
+    return primed;
+  }
+
+  private syncPrimeState(): void {
+    const primed = this.renderer?.primed ?? false;
+    if (primed === this.lastPrimed) return;
+    this.lastPrimed = primed;
+    this.onPrimeChange?.(primed);
   }
 
   private tick(dt: number): void {
@@ -90,6 +129,10 @@ export class SmooshEngine {
     }
 
     const params = { ...s.params };
+    if (this.infecting) {
+      params.motionGain = Math.min(5, params.motionGain * 1.7);
+      params.persistence = Math.max(0.94, params.persistence);
+    }
     if (this.cleanPulse > 0) {
       params.cleanBleed = Math.min(1, params.cleanBleed + this.cleanPulse * 0.85);
       this.cleanPulse = Math.max(0, this.cleanPulse - dt * 2.2);
@@ -138,6 +181,11 @@ export class SmooshEngine {
       pixels: pixelsLive,
       motion: bPaused ? null : motion,
       pixelsB,
+      pixelsStill: this.hub.a.kind === "image",
+      motionStill:
+        s.mode === "self"
+          ? this.hub.a.kind === "image"
+          : this.hub.b.kind === "image",
       pixelsMirror: s.slotA.mirror,
       motionMirror: s.slotB.mirror,
       pixelsFill: s.slotA.fill,
@@ -145,9 +193,10 @@ export class SmooshEngine {
       freezePixels: freeze,
       mode: s.mode === "buffer" ? "transfer" : s.mode,
       params,
-      injectBoost: this.boostDecay * 0.55,
+      injectBoost: Math.max(this.boostDecay, this.infecting ? 1 : 0) * 0.55,
       flowHold: bPaused,
     });
+    this.syncPrimeState();
 
     if (r.error && s.engineError !== r.error) {
       useSmoosh.getState().setEngineError(r.error);

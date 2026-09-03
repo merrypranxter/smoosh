@@ -113,7 +113,7 @@ export const useSmoosh = create<SmooshStore>((set, get) => ({
   swapped: false,
   setParam: (key, value) =>
     set((s) => ({ params: { ...s.params, [key]: value } })),
-  setParams: (p) => set({ params: { ...p } }),
+  setParams: (p) => set({ params: { ...DEFAULT_PARAMS, ...p } }),
   setMode: (m) =>
     set((s) => ({
       mode: m,

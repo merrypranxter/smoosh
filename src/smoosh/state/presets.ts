@@ -71,7 +71,12 @@ function readAll(): Preset[] {
     if (!raw) return [...FACTORY];
     const parsed = JSON.parse(raw) as Preset[];
     if (!Array.isArray(parsed)) return [...FACTORY];
-    const user = parsed.filter((p) => p && p.id && p.params && !p.id.startsWith("factory-"));
+    const user = parsed
+      .filter((p) => p && p.id && p.params && !p.id.startsWith("factory-"))
+      .map((p) => ({
+        ...p,
+        params: { ...DEFAULT_PARAMS, ...p.params },
+      }));
     return [...FACTORY, ...user];
   } catch {
     return [...FACTORY];

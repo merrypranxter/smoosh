@@ -23,6 +23,8 @@ export interface RenderInputs {
   pixels: Drawable | null;
   motion: Drawable | null;
   pixelsB: Drawable | null;
+  pixelsStill: boolean;
+  motionStill: boolean;
   pixelsMirror: boolean;
   motionMirror: boolean;
   pixelsFill: "fill" | "fit";
@@ -32,6 +34,16 @@ export interface RenderInputs {
   params: EngineParams;
   injectBoost: number;
   flowHold: boolean;
+}
+
+export interface PrimeInputs {
+  pixels: Drawable | null;
+  motion: Drawable | null;
+  pixelsB: Drawable | null;
+  pixelsMirror: boolean;
+  motionMirror: boolean;
+  pixelsFill: "fill" | "fit";
+  motionFill: "fill" | "fit";
 }
 
 interface Program {
@@ -74,11 +86,14 @@ export class SmooshRenderer {
   private feedbackA: PingPong | null = null;
   private feedbackB: PingPong | null = null;
   private mixTarget: Target | null = null;
+  private outputMixTarget: Target | null = null;
 
   private capturePixels: HTMLCanvasElement;
   private captureMotion: HTMLCanvasElement;
   private capturePixelsB: HTMLCanvasElement;
   private frozenPixels: HTMLCanvasElement;
+  private syntheticMotion: HTMLCanvasElement;
+  private syntheticPixels: HTMLCanvasElement;
   hasFrozen = false;
   lastPixelsCanvas: HTMLCanvasElement;
 
@@ -103,6 +118,8 @@ export class SmooshRenderer {
     this.captureMotion = document.createElement("canvas");
     this.capturePixelsB = document.createElement("canvas");
     this.frozenPixels = document.createElement("canvas");
+    this.syntheticMotion = document.createElement("canvas");
+    this.syntheticPixels = document.createElement("canvas");
     this.lastPixelsCanvas = this.capturePixels;
     this.init();
   }
@@ -272,6 +289,12 @@ export class SmooshRenderer {
     if (!this.mixTarget) this.mixTarget = createTarget(gl, w, h, hf, gl.LINEAR);
     else resizeTarget(gl, this.mixTarget, w, h);
 
+    if (!this.outputMixTarget) {
+      this.outputMixTarget = createTarget(gl, w, h, hf, gl.LINEAR);
+    } else {
+      resizeTarget(gl, this.outputMixTarget, w, h);
+    }
+
     this.capturePixels.width = w;
     this.capturePixels.height = h;
     this.captureMotion.width = w;
@@ -280,6 +303,10 @@ export class SmooshRenderer {
     this.capturePixelsB.height = h;
     this.frozenPixels.width = w;
     this.frozenPixels.height = h;
+    this.syntheticMotion.width = w;
+    this.syntheticMotion.height = h;
+    this.syntheticPixels.width = w;
+    this.syntheticPixels.height = h;
   }
 
   setOutput(aspect: number, quality: QualityLevel): void {
@@ -365,6 +392,51 @@ export class SmooshRenderer {
     drawCover(ctx, media, this.w, this.h, fill, mirror);
   }
 
+  get primed(): boolean {
+    return this.seeded;
+  }
+
+  prime(input: PrimeInputs): boolean {
+    if (!mediaReady(input.pixels)) return false;
+
+    this.capture(
+      this.capturePixels,
+      input.pixels as Drawable,
+      input.pixelsFill,
+      input.pixelsMirror,
+    );
+    this.upload(this.pixelsTex, this.capturePixels);
+    this.upload(this.motionACurr, this.capturePixels);
+    this.upload(this.motionAPrev, this.capturePixels);
+    this.lastPixelsCanvas = this.capturePixels;
+
+    if (mediaReady(input.motion)) {
+      this.capture(
+        this.captureMotion,
+        input.motion as Drawable,
+        input.motionFill,
+        input.motionMirror,
+      );
+      this.upload(this.motionCurr, this.captureMotion);
+      this.upload(this.motionPrev, this.captureMotion);
+    }
+
+    if (mediaReady(input.pixelsB)) {
+      this.capture(
+        this.capturePixelsB,
+        input.pixelsB as Drawable,
+        input.motionFill,
+        input.motionMirror,
+      );
+      this.upload(this.pixelsBTex, this.capturePixelsB);
+    }
+
+    this.motionFlip = false;
+    this.motionAFlip = false;
+    this.reseed();
+    return this.seeded;
+  }
+
   reseed(): void {
     const gl = this.gl;
     if (!gl || !this.feedbackA || !this.pixelsTex) return;
@@ -442,20 +514,24 @@ export class SmooshRenderer {
         input.motionMirror,
       );
       const write = this.motionFlip ? this.motionCurr : this.motionPrev;
-      const _read = this.motionFlip ? this.motionPrev : this.motionCurr;
-      void _read;
-      this.upload(write, this.captureMotion);
+      const motionFrame = input.motionStill
+        ? shiftedFrame(this.captureMotion, this.syntheticMotion, this.motionFlip ? -1 : 1)
+        : this.captureMotion;
+      this.upload(write, motionFrame);
       this.motionFlip = !this.motionFlip;
     }
 
     const needAFlow = input.mode === "cross" || input.mode === "self";
     if (needAFlow && mediaReady(pixelsSrc) && !input.freezePixels) {
       const write = this.motionAFlip ? this.motionACurr : this.motionAPrev;
+      const pixelsFrame = input.pixelsStill
+        ? shiftedFrame(this.capturePixels, this.syntheticPixels, this.motionAFlip ? -1 : 1)
+        : this.capturePixels;
       this.upload(
         write,
         input.freezePixels && this.hasFrozen
           ? this.frozenPixels
-          : this.capturePixels,
+          : pixelsFrame,
       );
       this.motionAFlip = !this.motionAFlip;
     }
@@ -515,6 +591,20 @@ export class SmooshRenderer {
       );
       this.mixFeedbacks(input.params.crossBalance);
       present = this.mixTarget!.tex;
+    }
+
+    if (
+      input.params.mix < 0.999 &&
+      this.pixelsTex &&
+      this.outputMixTarget
+    ) {
+      this.mixTextures(
+        this.pixelsTex,
+        present,
+        input.params.mix,
+        this.outputMixTarget,
+      );
+      present = this.outputMixTarget.tex;
     }
 
     this.present(present);
@@ -600,17 +690,32 @@ export class SmooshRenderer {
   }
 
   private mixFeedbacks(amount: number): void {
+    if (!this.feedbackA || !this.feedbackB || !this.mixTarget) return;
+    this.mixTextures(
+      this.feedbackA.read().tex,
+      this.feedbackB.read().tex,
+      amount,
+      this.mixTarget,
+    );
+  }
+
+  private mixTextures(
+    a: WebGLTexture,
+    b: WebGLTexture,
+    amount: number,
+    target: Target,
+  ): void {
     const gl = this.gl;
-    if (!gl || !this.feedbackA || !this.feedbackB || !this.mixTarget) return;
+    if (!gl) return;
     gl.bindVertexArray(this.vao);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, this.mixTarget.fbo);
-    gl.viewport(0, 0, this.w, this.h);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, target.fbo);
+    gl.viewport(0, 0, target.w, target.h);
     gl.useProgram(this.mixProg.prog);
     gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, this.feedbackA.read().tex);
+    gl.bindTexture(gl.TEXTURE_2D, a);
     gl.uniform1i(this.mixProg.loc.uA, 0);
     gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, this.feedbackB.read().tex);
+    gl.bindTexture(gl.TEXTURE_2D, b);
     gl.uniform1i(this.mixProg.loc.uB, 1);
     gl.uniform1f(this.mixProg.loc.uMix, amount);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
@@ -673,6 +778,7 @@ export class SmooshRenderer {
       destroyTarget(gl, this.feedbackB.b);
     }
     destroyTarget(gl, this.mixTarget);
+    destroyTarget(gl, this.outputMixTarget);
     for (const t of [
       this.pixelsTex,
       this.motionCurr,
@@ -694,4 +800,20 @@ function copy2d(src: HTMLCanvasElement, dst: HTMLCanvasElement): void {
   const ctx = dst.getContext("2d", { alpha: false });
   if (!ctx) return;
   ctx.drawImage(src, 0, 0);
+}
+
+function shiftedFrame(
+  src: HTMLCanvasElement,
+  dst: HTMLCanvasElement,
+  shiftX: number,
+): HTMLCanvasElement {
+  if (dst.width !== src.width) dst.width = src.width;
+  if (dst.height !== src.height) dst.height = src.height;
+  const ctx = dst.getContext("2d", { alpha: false });
+  if (!ctx) return src;
+  const dx = shiftX < 0 ? -1 : 1;
+  ctx.drawImage(src, dx, 0);
+  ctx.drawImage(src, dx - src.width, 0);
+  ctx.drawImage(src, dx + src.width, 0);
+  return dst;
 }
