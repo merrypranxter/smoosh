@@ -107,6 +107,20 @@ const COLOR_ROUTE_HINTS: Record<ColorRoute, string> = {
   output: "OUTPUT grades the finished smashed frame and the recording.",
 };
 
+type TouchJumpTarget = "a" | "b" | "both" | "output";
+
+const TOUCH_JUMP_TARGETS: ReadonlyArray<{
+  id: TouchJumpTarget;
+  label: string;
+}> = [
+  { id: "a", label: "A · BODY" },
+  { id: "b", label: "B · WIND" },
+  { id: "both", label: "BOTH" },
+  { id: "output", label: "OUTPUT LOOP" },
+];
+
+const TOUCH_JUMP_AMOUNTS = [-50, -40, -30, -20, -10, 20, 30, 40, 50];
+
 export function SmooshApp() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileARef = useRef<HTMLInputElement>(null);
@@ -134,6 +148,9 @@ export function SmooshApp() {
   const [snapshotArmed, setSnapshotArmed] = useState(false);
   const [compare, setCompare] = useState(false);
   const [comparePosition, setComparePosition] = useState(50);
+  const [touchJump, setTouchJump] = useState(false);
+  const [touchJumpTarget, setTouchJumpTarget] = useState<TouchJumpTarget>("a");
+  const [outputLooping, setOutputLooping] = useState(false);
   const [processionSteps, setProcessionSteps] =
     useState<ProcessionStep[]>(defaultProcession);
   const [processionLoop, setProcessionLoop] = useState(false);
@@ -723,6 +740,62 @@ export function SmooshApp() {
     });
   }
 
+  function releaseOutputLoop() {
+    engineRef.current?.stopOutputLoop();
+    setOutputLooping(false);
+  }
+
+  function performTouchJump(frames: number) {
+    const hub = hubRef.current;
+    const engine = engineRef.current;
+    if (!hub || !engine) return;
+
+    if (touchJumpTarget === "output") {
+      playSources(["a", "b"], {
+        forcePrime: !engine.primed,
+        inject: false,
+      });
+      const started = engine.startOutputLoop(
+        Math.abs(frames),
+        frames < 0 ? "backward" : "forward",
+      );
+      setOutputLooping(started);
+      useSmoosh
+        .getState()
+        .setToast(
+          started
+            ? `OUTPUT LOOP ${frames > 0 ? "+" : ""}${frames}`
+            : "Let the canvas run for a moment before looping it.",
+        );
+      return;
+    }
+
+    releaseOutputLoop();
+    const state = useSmoosh.getState();
+    const ids: Array<"a" | "b"> =
+      touchJumpTarget === "both" ? ["a", "b"] : [touchJumpTarget];
+    let jumped = false;
+    for (const id of ids) {
+      const slot = id === "a" ? state.slotA : state.slotB;
+      jumped =
+        hub.jumpFrames(id, frames, {
+          inPoint: slot.inPoint,
+          loop: slot.loop,
+        }) || jumped;
+    }
+    if (!jumped) {
+      state.setToast("That target needs a video or moving seed to jump.");
+      return;
+    }
+    playSources(["a", "b"], {
+      forcePrime: !engine.primed,
+      inject: true,
+    });
+    state.setToast(
+      `${touchJumpTarget === "both" ? "A + B" : touchJumpTarget.toUpperCase()} ${frames > 0 ? "+" : ""}${frames} FRAMES`,
+    );
+  }
+
   function engageMode(mode: SmooshMode, preserveBuffer: boolean) {
     const engine = engineRef.current;
     const state = useSmoosh.getState();
@@ -988,7 +1061,13 @@ export function SmooshApp() {
             : "BUFFER EMPTY";
 
   return (
-    <div className={cn("app-shell", store.color.enabled && "color-feed-open")}>
+    <div
+      className={cn(
+        "app-shell",
+        store.color.enabled && "color-feed-open",
+        touchJump && "touch-jump-open",
+      )}
+    >
       <div className="noise" aria-hidden />
       <header className="topbar">
         <button
@@ -1021,7 +1100,7 @@ export function SmooshApp() {
             className="stage-canvas"
             aria-label="SMOOSH output"
           />
-          {compare && (
+          {compare && !touchJump && (
             <CompareOverlay
               source={
                 hubRef.current?.drawable("a") ??
@@ -1034,12 +1113,19 @@ export function SmooshApp() {
               onChange={setComparePosition}
             />
           )}
-          {store.symmetry.enabled && !compare && (
+          {store.symmetry.enabled && !compare && !touchJump && (
             <SymmetryOverlay
               axis={store.symmetry.axis}
               sourceSide={store.symmetry.sourceSide}
               onChange={(axis) => store.setSymmetry({ axis })}
               onReset={() => store.setSymmetry({ axis: 0.5 })}
+            />
+          )}
+          {touchJump && (
+            <TouchJumpOverlay
+              target={touchJumpTarget}
+              outputLooping={outputLooping}
+              onJump={performTouchJump}
             />
           )}
           <div className="stage-frame" aria-hidden />
@@ -1070,7 +1156,16 @@ export function SmooshApp() {
           type="button"
           className={cn(compare && "on")}
           aria-pressed={compare}
-          onClick={() => setCompare((current) => !current)}
+          onClick={() =>
+            setCompare((current) => {
+              const enabled = !current;
+              if (enabled) {
+                setTouchJump(false);
+                releaseOutputLoop();
+              }
+              return enabled;
+            })
+          }
         >
           COMPARE
         </button>
@@ -1081,7 +1176,11 @@ export function SmooshApp() {
           onClick={() => {
             const enabled = !store.symmetry.enabled;
             store.setSymmetry({ enabled });
-            if (enabled) setCompare(false);
+            if (enabled) {
+              setCompare(false);
+              setTouchJump(false);
+              releaseOutputLoop();
+            }
           }}
         >
           SYMMETRY
@@ -1093,6 +1192,19 @@ export function SmooshApp() {
           onClick={() => store.setColor({ enabled: !store.color.enabled })}
         >
           COLOR FEED
+        </button>
+        <button
+          type="button"
+          className={cn(touchJump && "on")}
+          aria-pressed={touchJump}
+          onClick={() => {
+            const enabled = !touchJump;
+            setTouchJump(enabled);
+            if (enabled) setCompare(false);
+            else releaseOutputLoop();
+          }}
+        >
+          TOUCH JUMP
         </button>
         {store.symmetry.enabled && (
           <>
@@ -1134,6 +1246,18 @@ export function SmooshApp() {
       </div>
 
       {store.color.enabled && <ColorFeedPanel />}
+      {touchJump && (
+        <TouchJumpControls
+          target={touchJumpTarget}
+          outputLooping={outputLooping}
+          onTarget={(target) => {
+            if (target !== "output") releaseOutputLoop();
+            setTouchJumpTarget(target);
+          }}
+          onJump={performTouchJump}
+          onRelease={releaseOutputLoop}
+        />
+      )}
 
       <div
         className={cn(
@@ -1934,6 +2058,164 @@ function SlotCard({
         </div>
       )}
     </section>
+  );
+}
+
+function TouchJumpControls({
+  target,
+  outputLooping,
+  onTarget,
+  onJump,
+  onRelease,
+}: {
+  target: TouchJumpTarget;
+  outputLooping: boolean;
+  onTarget: (target: TouchJumpTarget) => void;
+  onJump: (frames: number) => void;
+  onRelease: () => void;
+}) {
+  return (
+    <section className="touch-jump-controls" aria-label="Touch Jump controls">
+      <div className="touch-jump-head">
+        <strong>TOUCH JUMP</strong>
+        <span>LEFT = BACK · RIGHT = FORWARD · LOWER = FARTHER</span>
+      </div>
+      <div className="touch-target-rail" aria-label="Touch Jump target">
+        {TOUCH_JUMP_TARGETS.map((item) => (
+          <button
+            type="button"
+            key={item.id}
+            className={cn(target === item.id && "on")}
+            aria-pressed={target === item.id}
+            onClick={() => onTarget(item.id)}
+          >
+            {item.label}
+          </button>
+        ))}
+        {outputLooping && (
+          <button type="button" className="release-loop" onClick={onRelease}>
+            RELEASE LOOP
+          </button>
+        )}
+      </div>
+      <div className="jump-amount-rail" aria-label="Jump amount fallback">
+        {TOUCH_JUMP_AMOUNTS.map((frames) => (
+          <button
+            type="button"
+            key={frames}
+            aria-label={`Jump ${frames > 0 ? "forward" : "backward"} ${Math.abs(frames)} frames`}
+            onClick={() => onJump(frames)}
+          >
+            {frames > 0 ? `+${frames}` : frames}
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function TouchJumpOverlay({
+  target,
+  outputLooping,
+  onJump,
+}: {
+  target: TouchJumpTarget;
+  outputLooping: boolean;
+  onJump: (frames: number) => void;
+}) {
+  const [frames, setFrames] = useState(30);
+  const [pressed, setPressed] = useState(false);
+  const latestFrames = useRef(30);
+  const repeatDelay = useRef<number>(0);
+  const repeatTimer = useRef<number>(0);
+  const targetLabel =
+    TOUCH_JUMP_TARGETS.find((item) => item.id === target)?.label ?? "A · BODY";
+
+  function clearRepeat() {
+    if (repeatDelay.current) window.clearTimeout(repeatDelay.current);
+    if (repeatTimer.current) window.clearInterval(repeatTimer.current);
+    repeatDelay.current = 0;
+    repeatTimer.current = 0;
+  }
+
+  useEffect(
+    () => () => {
+      if (repeatDelay.current) window.clearTimeout(repeatDelay.current);
+      if (repeatTimer.current) window.clearInterval(repeatTimer.current);
+    },
+    [],
+  );
+
+  function readZone(event: PointerEvent<HTMLDivElement>): number {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = Math.min(
+      0.999,
+      Math.max(0, (event.clientX - rect.left) / rect.width),
+    );
+    const y = Math.min(
+      0.999,
+      Math.max(0, (event.clientY - rect.top) / rect.height),
+    );
+    const leftSteps = [10, 20, 30, 40, 50];
+    const rightSteps = [20, 30, 40, 50];
+    const next =
+      x < 0.5
+        ? -leftSteps[Math.floor(y * leftSteps.length)]!
+        : rightSteps[Math.floor(y * rightSteps.length)]!;
+    latestFrames.current = next;
+    setFrames(next);
+    return next;
+  }
+
+  function begin(event: PointerEvent<HTMLDivElement>) {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setPressed(true);
+    const next = readZone(event);
+    onJump(next);
+    clearRepeat();
+    if (target !== "output") {
+      repeatDelay.current = window.setTimeout(() => {
+        repeatTimer.current = window.setInterval(
+          () => onJump(latestFrames.current),
+          220,
+        );
+      }, 340);
+    }
+  }
+
+  function move(event: PointerEvent<HTMLDivElement>) {
+    if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
+    event.preventDefault();
+    readZone(event);
+  }
+
+  function end(event: PointerEvent<HTMLDivElement>) {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    setPressed(false);
+    clearRepeat();
+  }
+
+  return (
+    <div
+      className={cn("touch-jump-overlay", pressed && "pressed")}
+      onPointerDown={begin}
+      onPointerMove={move}
+      onPointerUp={end}
+      onPointerCancel={end}
+      aria-hidden="true"
+    >
+      <span className="touch-side-label back">BACK</span>
+      <span className="touch-side-label forward">FORWARD</span>
+      <div className="touch-jump-hud">
+        <strong>{outputLooping ? "LOOPING" : targetLabel}</strong>
+        <b>{frames > 0 ? `+${frames}` : frames}</b>
+        <small>FRAMES</small>
+      </div>
+    </div>
   );
 }
 

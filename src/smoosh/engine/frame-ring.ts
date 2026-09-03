@@ -1,12 +1,7 @@
 import { copyCanvas, makeCaptureCanvas } from "./draw";
 
 export type AbuseMode =
-  | "live"
-  | "hold"
-  | "forward"
-  | "backward"
-  | "pingpong"
-  | "random";
+  "live" | "hold" | "forward" | "backward" | "pingpong" | "random";
 
 export class FrameRing {
   private frames: HTMLCanvasElement[] = [];
@@ -19,9 +14,10 @@ export class FrameRing {
   private play = 0;
   private dir = 1;
   private holdIndex = 0;
+  private windowSize: number | null = null;
 
   constructor(max: number, w: number, h: number) {
-    this.max = Math.max(4, Math.min(16, max));
+    this.max = Math.max(4, Math.min(60, max));
     this.w = w;
     this.h = h;
     for (let i = 0; i < this.max; i++) {
@@ -33,7 +29,7 @@ export class FrameRing {
     this.w = w;
     this.h = h;
     if (typeof max === "number") {
-      this.max = Math.max(4, Math.min(16, max));
+      this.max = Math.max(4, Math.min(60, max));
     }
     while (this.frames.length < this.max) {
       this.frames.push(makeCaptureCanvas(w, h));
@@ -62,9 +58,16 @@ export class FrameRing {
       this.holdIndex = (this.write - 1 + this.max) % this.max;
     }
     if (mode === "forward" || mode === "backward" || mode === "pingpong") {
-      this.play = 0;
+      const available = Math.min(this.filled, this.windowSize ?? this.filled);
+      this.play = mode === "backward" ? Math.max(0, available - 1) : 0;
       this.dir = mode === "backward" ? -1 : 1;
     }
+  }
+
+  setWindowSize(size: number | null): void {
+    this.windowSize =
+      size === null ? null : Math.max(2, Math.min(this.max, Math.round(size)));
+    this.play = 0;
   }
 
   sample(): HTMLCanvasElement | null {
@@ -76,7 +79,7 @@ export class FrameRing {
     if (this.mode === "hold") {
       return this.frames[this.holdIndex % this.max] ?? null;
     }
-    const n = this.filled;
+    const n = Math.min(this.filled, this.windowSize ?? this.filled);
     let idx: number;
     if (this.mode === "random") {
       idx = Math.floor(Math.random() * n);
@@ -103,5 +106,6 @@ export class FrameRing {
 
   release(): void {
     this.mode = "live";
+    this.windowSize = null;
   }
 }

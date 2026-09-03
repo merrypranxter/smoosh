@@ -570,6 +570,199 @@ body {
   accent-color: var(--color-orange);
 }
 
+.touch-jump-overlay {
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  cursor: crosshair;
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in oklab, var(--color-pink) 11%, transparent) 0 49.6%,
+      color-mix(in oklab, var(--color-paper) 45%, transparent) 49.8% 50.2%,
+      color-mix(in oklab, var(--color-cyan) 10%, transparent) 50.4% 100%
+    ),
+    repeating-linear-gradient(
+      0deg,
+      transparent 0 calc(20% - 1px),
+      color-mix(in oklab, var(--color-chrome) 18%, transparent) calc(20% - 1px)
+        20%
+    );
+}
+
+.touch-jump-overlay.pressed {
+  background:
+    radial-gradient(
+      circle at center,
+      color-mix(in oklab, var(--color-yellow) 14%, transparent),
+      transparent 42%
+    ),
+    linear-gradient(
+      90deg,
+      color-mix(in oklab, var(--color-pink) 16%, transparent) 0 49.6%,
+      color-mix(in oklab, var(--color-paper) 68%, transparent) 49.8% 50.2%,
+      color-mix(in oklab, var(--color-cyan) 15%, transparent) 50.4% 100%
+    );
+}
+
+.touch-side-label {
+  position: absolute;
+  top: 50%;
+  writing-mode: vertical-rl;
+  transform: translateY(-50%);
+  color: var(--color-paper);
+  font-family: var(--font-display);
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  opacity: 0.62;
+  pointer-events: none;
+}
+
+.touch-side-label.back {
+  left: 8px;
+  transform: translateY(-50%) rotate(180deg);
+  color: var(--color-pink);
+}
+
+.touch-side-label.forward {
+  right: 8px;
+  color: var(--color-cyan);
+}
+
+.touch-jump-hud {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  min-width: 110px;
+  padding: 8px 11px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  transform: translate(-50%, -50%);
+  border: 1px solid color-mix(in oklab, var(--color-yellow) 62%, transparent);
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--color-ink) 74%, transparent);
+  color: var(--color-paper);
+  box-shadow: 0 0 24px #000;
+  backdrop-filter: blur(6px);
+  pointer-events: none;
+}
+
+.touch-jump-hud strong,
+.touch-jump-hud small {
+  grid-column: 1;
+}
+
+.touch-jump-hud strong {
+  font-size: 0.57rem;
+  letter-spacing: 0.08em;
+}
+
+.touch-jump-hud b {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  color: var(--color-yellow);
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  line-height: 0.9;
+}
+
+.touch-jump-hud small {
+  margin-top: 2px;
+  color: var(--color-fog);
+  font-size: 0.48rem;
+  letter-spacing: 0.14em;
+}
+
+.touch-jump-controls {
+  width: min(100%, 640px);
+  margin: 0 auto;
+  padding: 7px 8px;
+  display: grid;
+  gap: 6px;
+  border: 1px solid color-mix(in oklab, var(--color-cyan) 48%, transparent);
+  border-radius: 13px;
+  background: var(--color-ink-2);
+}
+
+.touch-jump-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.touch-jump-head strong {
+  color: var(--color-cyan);
+  font-family: var(--font-display);
+  font-size: 0.84rem;
+  letter-spacing: 0.08em;
+}
+
+.touch-jump-head span {
+  overflow: hidden;
+  color: var(--color-fog);
+  font-size: 0.5rem;
+  font-weight: 750;
+  letter-spacing: 0.025em;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.touch-target-rail,
+.jump-amount-rail {
+  display: flex;
+  gap: 5px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+}
+
+.touch-target-rail::-webkit-scrollbar,
+.jump-amount-rail::-webkit-scrollbar {
+  display: none;
+}
+
+.touch-jump-controls button {
+  flex: 0 0 auto;
+  min-height: 30px;
+  padding: 0 9px;
+  scroll-snap-align: start;
+  border: 1px solid color-mix(in oklab, var(--color-chrome) 28%, transparent);
+  border-radius: 8px;
+  background: var(--color-ink-3);
+  color: var(--color-fog);
+  font-size: 0.57rem;
+  font-weight: 850;
+  letter-spacing: 0.045em;
+  white-space: nowrap;
+}
+
+.touch-jump-controls button.on {
+  border-color: var(--color-cyan);
+  color: var(--color-cyan);
+  box-shadow: inset 0 0 11px
+    color-mix(in oklab, var(--color-cyan) 13%, transparent);
+}
+
+.touch-jump-controls button.release-loop {
+  border-color: var(--color-yellow);
+  color: var(--color-yellow);
+}
+
+.jump-amount-rail button:nth-last-child(-n + 4) {
+  color: var(--color-cyan);
+}
+
+.jump-amount-rail button:nth-child(-n + 5) {
+  color: var(--color-pink);
+}
+
 .rec-chip,
 .mode-chip {
   position: absolute;
@@ -1583,6 +1776,10 @@ body {
     max-height: min(43dvh, calc(100dvh - 290px), 500px);
   }
 
+  .touch-jump-open .stage {
+    max-height: min(43dvh, calc(100dvh - 270px), 500px);
+  }
+
   .stage-actions {
     min-height: 32px;
   }
@@ -1612,6 +1809,10 @@ body {
     align-items: flex-start;
     flex-direction: column;
     gap: 0;
+  }
+
+  .touch-jump-controls {
+    width: 100%;
   }
 
   .compare-handle::after {

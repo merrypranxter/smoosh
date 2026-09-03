@@ -23,6 +23,11 @@ export class SmooshEngine {
   private last = 0;
   running = false;
   private ring: FrameRing;
+  private outputRing: FrameRing;
+  private outputCaptureClock = 0;
+  private outputPlaybackClock = 0;
+  private outputLoopFrame: HTMLCanvasElement | null = null;
+  private outputLoopActive = false;
   private boostDecay = 0;
   private infecting = false;
   private canvas: HTMLCanvasElement | null = null;
@@ -46,6 +51,7 @@ export class SmooshEngine {
     this.onCrossWeather = onCrossWeather;
     const mobile = isMobileClient();
     this.ring = new FrameRing(mobile ? 8 : 12, 240, 426);
+    this.outputRing = new FrameRing(50, 240, 426);
   }
 
   attach(canvas: HTMLCanvasElement): string | null {
@@ -108,6 +114,26 @@ export class SmooshEngine {
   lockOutputBody(): void {
     this.renderer?.lockOutputBody();
     this.syncPrimeState();
+  }
+
+  startOutputLoop(frames: number, direction: "forward" | "backward"): boolean {
+    if (this.outputRing.filled < 2) return false;
+    this.outputRing.setWindowSize(Math.abs(frames));
+    this.outputRing.setMode(direction);
+    this.outputPlaybackClock = 1;
+    this.outputLoopFrame = null;
+    this.outputLoopActive = true;
+    return true;
+  }
+
+  stopOutputLoop(): void {
+    this.outputLoopActive = false;
+    this.outputLoopFrame = null;
+    this.outputRing.release();
+  }
+
+  get outputLooping(): boolean {
+    return this.outputLoopActive;
   }
 
   get primed(): boolean {
@@ -283,6 +309,29 @@ export class SmooshEngine {
       symmetry: s.symmetry,
       color: s.color,
     });
+
+    const outputW = 240;
+    const outputH = Math.max(64, Math.round(outputW / Math.max(0.1, aspect)));
+    if (this.outputRing.w !== outputW || this.outputRing.h !== outputH) {
+      this.outputRing.resize(outputW, outputH, 50);
+      this.outputLoopActive = false;
+      this.outputLoopFrame = null;
+    }
+
+    if (this.outputLoopActive) {
+      this.outputPlaybackClock += dt;
+      if (this.outputPlaybackClock >= 1 / 30 || !this.outputLoopFrame) {
+        this.outputPlaybackClock %= 1 / 30;
+        this.outputLoopFrame = this.outputRing.sample();
+      }
+      if (this.outputLoopFrame) r.presentExternal(this.outputLoopFrame);
+    } else if (this.canvas) {
+      this.outputCaptureClock += dt;
+      if (this.outputCaptureClock >= 1 / 30) {
+        this.outputCaptureClock %= 1 / 30;
+        this.outputRing.push(this.canvas);
+      }
+    }
     this.syncPrimeState();
 
     if (r.error && s.engineError !== r.error) {

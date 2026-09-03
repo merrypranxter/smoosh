@@ -46,6 +46,11 @@ export class DemoSource {
     else this.drawFire();
   }
 
+  jump(seconds: number): void {
+    this.t = Math.max(0, this.t + seconds);
+    this.tick(0);
+  }
+
   private drawPixels(): void {
     const { ctx, canvas, t } = this;
     const w = canvas.width;

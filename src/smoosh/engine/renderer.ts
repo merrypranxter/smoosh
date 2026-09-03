@@ -105,6 +105,7 @@ export class SmooshRenderer {
   private pixelsBTex: WebGLTexture | null = null;
   private motionACurr: WebGLTexture | null = null;
   private motionAPrev: WebGLTexture | null = null;
+  private externalTex: WebGLTexture | null = null;
 
   private flowRaw: Target | null = null;
   private flowB: PingPong | null = null;
@@ -249,6 +250,7 @@ export class SmooshRenderer {
     this.pixelsBTex = createColorTexture(gl);
     this.motionACurr = createColorTexture(gl);
     this.motionAPrev = createColorTexture(gl);
+    this.externalTex = createColorTexture(gl);
 
     this.allocate(this.w, this.h);
 
@@ -849,6 +851,29 @@ export class SmooshRenderer {
     gl.uniform1f(program.loc.uColorSharpness, color?.sharpness ?? 0);
   }
 
+  presentExternal(canvas: HTMLCanvasElement): void {
+    const gl = this.gl;
+    if (!gl || !this.externalTex) return;
+    this.upload(this.externalTex, canvas);
+    gl.bindVertexArray(this.vao);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+    gl.useProgram(this.blitProg.prog);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, this.externalTex);
+    gl.uniform1i(this.blitProg.loc.uTex, 0);
+    gl.uniform2f(
+      this.blitProg.loc.uTexel,
+      1 / Math.max(1, canvas.width),
+      1 / Math.max(1, canvas.height),
+    );
+    gl.uniform1i(this.blitProg.loc.uSymmetryEnabled, 0);
+    gl.uniform1f(this.blitProg.loc.uSymmetryAxis, 0.5);
+    gl.uniform1i(this.blitProg.loc.uSymmetrySide, 0);
+    this.setColorUniforms(this.blitProg, undefined, false);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  }
+
   private blitTextureTo(tex: WebGLTexture, target: Target): void {
     const gl = this.gl;
     if (!gl) return;
@@ -906,6 +931,7 @@ export class SmooshRenderer {
       this.pixelsBTex,
       this.motionACurr,
       this.motionAPrev,
+      this.externalTex,
     ]) {
       if (t) gl.deleteTexture(t);
     }

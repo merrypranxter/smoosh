@@ -342,6 +342,40 @@ export class MediaHub {
     }
   }
 
+  jumpFrames(
+    id: SlotId,
+    frames: number,
+    opts: { inPoint: number; loop: boolean; fps?: number },
+  ): boolean {
+    const slot = id === "a" ? this.a : this.b;
+    const seconds = frames / Math.max(1, opts.fps ?? 30);
+
+    if (slot.kind === "demo" && slot.demo) {
+      slot.demo.jump(seconds);
+      return true;
+    }
+
+    if (slot.kind !== "video") return false;
+    const video = slot.video;
+    if (!Number.isFinite(video.duration) || video.duration < 0.05) return false;
+
+    const start = Math.min(Math.max(0, opts.inPoint), video.duration - 0.03);
+    const span = Math.max(0.03, video.duration - start);
+    let next = video.currentTime + seconds;
+    if (opts.loop) {
+      next = start + ((((next - start) % span) + span) % span);
+    } else {
+      next = Math.min(video.duration - 0.03, Math.max(start, next));
+    }
+
+    try {
+      video.currentTime = next;
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   swap(): void {
     const tmp = this.a;
     this.a = this.b;
