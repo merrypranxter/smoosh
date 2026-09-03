@@ -22,6 +22,55 @@ float luma(vec3 c) {
 }
 `;
 
+const COLOR_COMMON = `
+uniform int uColorActive;
+uniform int uColorEffect;
+uniform float uColorSaturation;
+uniform float uColorVibrance;
+uniform float uColorSharpness;
+
+float colorLuma(vec3 c) {
+  return dot(c, vec3(0.299, 0.587, 0.114));
+}
+
+vec3 colorFeed(vec3 c) {
+  if (uColorActive == 0) return c;
+
+  if (uColorEffect == 1) {
+    c = vec3(colorLuma(c));
+  } else if (uColorEffect == 2) {
+    c = 1.0 - c;
+  } else if (uColorEffect == 3) {
+    c = floor(c * 5.0 + 0.5) / 5.0;
+  } else if (uColorEffect == 4) {
+    c = 1.0 - abs(c * 2.0 - 1.0);
+  } else if (uColorEffect == 5) {
+    float y = colorLuma(c);
+    vec3 bands = 0.5 + 0.5 * cos(6.2831853 * (y + vec3(0.00, 0.34, 0.67)));
+    c = mix(bands, bands * (0.55 + c * 0.75), 0.48);
+  }
+
+  float y = colorLuma(c);
+  float chroma = max(c.r, max(c.g, c.b)) - min(c.r, min(c.g, c.b));
+  float vibrance = 1.0 + uColorVibrance * (1.0 - chroma);
+  return clamp(mix(vec3(y), c, uColorSaturation * vibrance), 0.0, 1.0);
+}
+
+vec3 colorFeedSample(sampler2D tex, vec2 uv, vec2 texel) {
+  vec3 c = texture(tex, uv).rgb;
+  if (uColorActive == 1 && uColorSharpness > 0.001) {
+    vec3 blur = (
+      texture(tex, uv + vec2(texel.x, 0.0)).rgb +
+      texture(tex, uv - vec2(texel.x, 0.0)).rgb +
+      texture(tex, uv + vec2(0.0, texel.y)).rgb +
+      texture(tex, uv - vec2(0.0, texel.y)).rgb
+    ) * 0.25;
+    c += (c - blur) * uColorSharpness * 1.8;
+  }
+  return colorFeed(clamp(c, 0.0, 1.0));
+}
+`;
+
 export const FLOW_FRAG = `#version 300 es
 precision highp float;
 precision highp sampler2D;
@@ -34,6 +83,7 @@ uniform vec2 uTexel;
 uniform float uThreshold;
 uniform int uRadius;
 ${FLOW_COMMON}
+${COLOR_COMMON}
 
 void main() {
   float Ix2 = 0.0;
@@ -49,15 +99,19 @@ void main() {
       if (i < -r || i > r) continue;
       vec2 o = vec2(float(i), float(j)) * uTexel;
       vec2 uv = vUv + o;
-      float c = luma(texture(uCurr, uv).rgb);
-      float p = luma(texture(uPrev, uv).rgb);
-      float cx = luma(texture(uCurr, uv + vec2(uTexel.x, 0.0)).rgb);
-      float cy = luma(texture(uCurr, uv + vec2(0.0, uTexel.y)).rgb);
-      float px = luma(texture(uPrev, uv + vec2(uTexel.x, 0.0)).rgb);
-      float py = luma(texture(uPrev, uv + vec2(0.0, uTexel.y)).rgb);
+      float c = luma(colorFeed(texture(uCurr, uv).rgb));
+      float p = luma(colorFeed(texture(uPrev, uv).rgb));
+      float cx = luma(colorFeed(texture(uCurr, uv + vec2(uTexel.x, 0.0)).rgb));
+      float cy = luma(colorFeed(texture(uCurr, uv + vec2(0.0, uTexel.y)).rgb));
+      float px = luma(colorFeed(texture(uPrev, uv + vec2(uTexel.x, 0.0)).rgb));
+      float py = luma(colorFeed(texture(uPrev, uv + vec2(0.0, uTexel.y)).rgb));
       float Ix = 0.5 * ((cx - c) + (px - p));
       float Iy = 0.5 * ((cy - c) + (py - p));
       float It = c - p;
+      float sharpGain = 1.0 + uColorSharpness * 2.4;
+      Ix *= sharpGain;
+      Iy *= sharpGain;
+      It *= 1.0 + uColorSharpness * 0.7;
       Ix2 += Ix * Ix;
       Iy2 += Iy * Iy;
       Ixy += Ix * Iy;
@@ -136,6 +190,7 @@ uniform float uSplit;
 uniform float uInjectBoost;
 uniform int uChromaMode;
 ${FLOW_COMMON}
+${COLOR_COMMON}
 
 vec2 rotate(vec2 p, float a) {
   float c = cos(a);
@@ -176,7 +231,7 @@ void main() {
   }
   vec3 warped = vec3(sR.r, sG.g, sB.b) * uPersist;
 
-  vec3 src = texture(uSource, vUv).rgb;
+  vec3 src = colorFeedSample(uSource, vUv, uTexel);
   float inj = clamp(uRefresh + uInjectBoost, 0.0, 1.0);
   vec3 color = mix(warped, src, inj);
   color = mix(color, src, uBleed);
@@ -192,8 +247,10 @@ out vec4 fragColor;
 uniform sampler2D uA;
 uniform sampler2D uB;
 uniform float uMix;
+uniform vec2 uTexel;
+${COLOR_COMMON}
 void main() {
-  vec3 a = texture(uA, vUv).rgb;
+  vec3 a = colorFeedSample(uA, vUv, uTexel);
   vec3 b = texture(uB, vUv).rgb;
   fragColor = vec4(mix(a, b, uMix), 1.0);
 }
@@ -205,9 +262,11 @@ precision highp sampler2D;
 in vec2 vUv;
 out vec4 fragColor;
 uniform sampler2D uTex;
+uniform vec2 uTexel;
 uniform int uSymmetryEnabled;
 uniform float uSymmetryAxis;
 uniform int uSymmetrySide;
+${COLOR_COMMON}
 void main() {
   vec2 uv = vUv;
   if (uSymmetryEnabled == 1) {
@@ -216,6 +275,6 @@ void main() {
     if (reflectRight || reflectLeft) uv.x = 2.0 * uSymmetryAxis - uv.x;
     uv.x = clamp(uv.x, 0.0, 1.0);
   }
-  fragColor = texture(uTex, uv);
+  fragColor = vec4(colorFeedSample(uTex, uv, uTexel), 1.0);
 }
 `;

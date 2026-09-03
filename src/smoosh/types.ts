@@ -16,6 +16,66 @@ export type SlotId = "a" | "b";
 
 export type SymmetrySide = "left" | "right";
 
+export type ColorEffect =
+  "clean" | "mono" | "invert" | "posterize" | "solarize" | "false-color";
+
+export type ColorRoute = "body" | "wind" | "output";
+
+export interface ColorSettings {
+  enabled: boolean;
+  effect: ColorEffect;
+  route: ColorRoute;
+  saturation: number;
+  vibrance: number;
+  sharpness: number;
+}
+
+export const COLOR_EFFECT_META: Record<
+  ColorEffect,
+  {
+    label: string;
+    saturation: number;
+    vibrance: number;
+    sharpness: number;
+  }
+> = {
+  clean: { label: "CLEAN", saturation: 1, vibrance: 0, sharpness: 0 },
+  mono: { label: "MONO", saturation: 0, vibrance: 0, sharpness: 0.22 },
+  invert: {
+    label: "INVERT",
+    saturation: 1.12,
+    vibrance: 0.18,
+    sharpness: 0.16,
+  },
+  posterize: {
+    label: "POSTERIZE",
+    saturation: 1.28,
+    vibrance: 0.24,
+    sharpness: 0.3,
+  },
+  solarize: {
+    label: "SOLARIZE",
+    saturation: 1.22,
+    vibrance: 0.32,
+    sharpness: 0.22,
+  },
+  "false-color": {
+    label: "FALSE COLOR",
+    saturation: 1.42,
+    vibrance: 0.42,
+    sharpness: 0.18,
+  },
+};
+
+export const DEFAULT_COLOR: ColorSettings = {
+  enabled: false,
+  effect: "posterize",
+  route: "output",
+  saturation: COLOR_EFFECT_META.posterize.saturation,
+  vibrance: COLOR_EFFECT_META.posterize.vibrance,
+  sharpness: COLOR_EFFECT_META.posterize.sharpness,
+};
+
 export interface SymmetrySettings {
   enabled: boolean;
   axis: number;

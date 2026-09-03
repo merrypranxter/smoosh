@@ -281,6 +281,7 @@ export class SmooshEngine {
       flowHold: motionPaused || motionMissing,
       useHeldFlow: s.mode === "buffer" || s.mode === "hold",
       symmetry: s.symmetry,
+      color: s.color,
     });
     this.syncPrimeState();
 

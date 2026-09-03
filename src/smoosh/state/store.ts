@@ -1,11 +1,13 @@
 import { create } from "zustand";
 import {
   DEFAULT_PARAMS,
+  DEFAULT_COLOR,
   DEFAULT_SYMMETRY,
   SAFE_RANDOM_RANGES,
   type AspectPreset,
   type AudioRoute,
   type BufferPattern,
+  type ColorSettings,
   type EngineParams,
   type QualityLevel,
   type SlotState,
@@ -45,6 +47,7 @@ export interface SmooshStore {
   sourceAspect: number;
   swapped: boolean;
   symmetry: SymmetrySettings;
+  color: ColorSettings;
   setParam: <K extends keyof EngineParams>(
     key: K,
     value: EngineParams[K],
@@ -67,6 +70,7 @@ export interface SmooshStore {
   setEngineError: (msg: string | null) => void;
   setSourceAspect: (n: number) => void;
   setSymmetry: (patch: Partial<SymmetrySettings>) => void;
+  setColor: (patch: Partial<ColorSettings>) => void;
   resetParams: () => void;
   randomizeParams: () => void;
 }
@@ -125,6 +129,7 @@ export const useSmoosh = create<SmooshStore>((set, get) => ({
   sourceAspect: 9 / 16,
   swapped: false,
   symmetry: { ...DEFAULT_SYMMETRY },
+  color: { ...DEFAULT_COLOR },
   setParam: (key, value) =>
     set((s) => ({ params: { ...s.params, [key]: value } })),
   setParams: (p) => set({ params: { ...DEFAULT_PARAMS, ...p } }),
@@ -189,6 +194,25 @@ export const useSmoosh = create<SmooshStore>((set, get) => ({
         ...state.symmetry,
         ...patch,
         axis: Math.min(0.88, Math.max(0.12, patch.axis ?? state.symmetry.axis)),
+      },
+    })),
+  setColor: (patch) =>
+    set((state) => ({
+      color: {
+        ...state.color,
+        ...patch,
+        saturation: Math.min(
+          2.5,
+          Math.max(0, patch.saturation ?? state.color.saturation),
+        ),
+        vibrance: Math.min(
+          1,
+          Math.max(-1, patch.vibrance ?? state.color.vibrance),
+        ),
+        sharpness: Math.min(
+          1,
+          Math.max(0, patch.sharpness ?? state.color.sharpness),
+        ),
       },
     })),
   resetParams: () => set({ params: { ...DEFAULT_PARAMS } }),

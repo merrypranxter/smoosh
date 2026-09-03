@@ -9,7 +9,10 @@ const types = readFileSync("src/smoosh/types.ts", "utf8");
 const ui = readFileSync("src/smoosh/ui/SmooshApp.tsx", "utf8");
 
 test("symmetry is a recorded presentation modifier, not an eighth mode", () => {
-  assert.match(renderer, /this\.present\(present, input\.symmetry\)/);
+  assert.match(
+    renderer,
+    /this\.present\(present, input\.symmetry, input\.color\)/,
+  );
   assert.match(renderer, /uSymmetryEnabled, symmetry\.enabled \? 1 : 0/);
   assert.match(renderer, /uSymmetryEnabled, 0/);
   const modes = ui.match(/const MODES:[\s\S]*?\];/)?.[0] ?? "";

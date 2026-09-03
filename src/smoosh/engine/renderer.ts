@@ -1,4 +1,6 @@
 import type {
+  ColorEffect,
+  ColorSettings,
   EngineParams,
   QualityLevel,
   SymmetrySettings,
@@ -40,6 +42,7 @@ export interface RenderInputs {
   flowHold: boolean;
   useHeldFlow: boolean;
   symmetry: SymmetrySettings;
+  color: ColorSettings;
 }
 
 export interface PrimeInputs {
@@ -56,6 +59,23 @@ interface Program {
   prog: WebGLProgram;
   loc: Record<string, WebGLUniformLocation | null>;
 }
+
+const COLOR_EFFECT_INDEX: Record<ColorEffect, number> = {
+  clean: 0,
+  mono: 1,
+  invert: 2,
+  posterize: 3,
+  solarize: 4,
+  "false-color": 5,
+};
+
+const COLOR_UNIFORMS = [
+  "uColorActive",
+  "uColorEffect",
+  "uColorSaturation",
+  "uColorVibrance",
+  "uColorSharpness",
+];
 
 function loc(
   gl: WebGL2RenderingContext,
@@ -173,6 +193,7 @@ export class SmooshRenderer {
           "uTexel",
           "uThreshold",
           "uRadius",
+          ...COLOR_UNIFORMS,
         ]),
       };
       this.smoothProg = {
@@ -196,19 +217,22 @@ export class SmooshRenderer {
           "uSplit",
           "uInjectBoost",
           "uChromaMode",
+          ...COLOR_UNIFORMS,
         ]),
       };
       this.mixProg = {
         prog: mixP,
-        loc: loc(gl, mixP, ["uA", "uB", "uMix"]),
+        loc: loc(gl, mixP, ["uA", "uB", "uMix", "uTexel", ...COLOR_UNIFORMS]),
       };
       this.blitProg = {
         prog: blitP,
         loc: loc(gl, blitP, [
           "uTex",
+          "uTexel",
           "uSymmetryEnabled",
           "uSymmetryAxis",
           "uSymmetrySide",
+          ...COLOR_UNIFORMS,
         ]),
       };
     } catch (err) {
@@ -589,9 +613,9 @@ export class SmooshRenderer {
     const prevA = this.motionAFlip ? this.motionACurr : this.motionAPrev;
 
     if (!input.flowHold) {
-      this.estimateFlow(currB, prevB, this.flowB, input.params);
+      this.estimateFlow(currB, prevB, this.flowB, input.params, input.color);
       if (needAFlow) {
-        this.estimateFlow(currA, prevA, this.flowA, input.params);
+        this.estimateFlow(currA, prevA, this.flowA, input.params, input.color);
       }
     }
 
@@ -614,6 +638,7 @@ export class SmooshRenderer {
       moshParams,
       input.injectBoost,
       input.mode === "chroma",
+      input.color,
     );
 
     let present: WebGLTexture = this.feedbackA.read().tex;
@@ -626,6 +651,7 @@ export class SmooshRenderer {
         moshParams,
         input.injectBoost,
         false,
+        input.color,
       );
       this.mixFeedbacks(input.params.crossBalance);
       present = this.mixTarget!.tex;
@@ -637,11 +663,12 @@ export class SmooshRenderer {
         present,
         input.params.mix,
         this.outputMixTarget,
+        input.color,
       );
       present = this.outputMixTarget.tex;
     }
 
-    this.present(present, input.symmetry);
+    this.present(present, input.symmetry, input.color);
   }
 
   private estimateFlow(
@@ -649,6 +676,7 @@ export class SmooshRenderer {
     prev: WebGLTexture | null,
     ping: PingPong | null,
     params: EngineParams,
+    color: ColorSettings,
   ): void {
     const gl = this.gl;
     if (!gl || !curr || !prev || !ping || !this.flowRaw) return;
@@ -668,6 +696,11 @@ export class SmooshRenderer {
     gl.uniform1i(
       this.flowProg.loc.uRadius,
       this.quality === "performance" ? 1 : 2,
+    );
+    this.setColorUniforms(
+      this.flowProg,
+      color,
+      color.enabled && color.route === "wind",
     );
     gl.drawArrays(gl.TRIANGLES, 0, 3);
 
@@ -694,6 +727,7 @@ export class SmooshRenderer {
     params: EngineParams,
     injectBoost: number,
     chromaMode: boolean,
+    color: ColorSettings,
   ): void {
     const gl = this.gl;
     if (!gl || !source) return;
@@ -721,6 +755,11 @@ export class SmooshRenderer {
     gl.uniform1f(this.moshProg.loc.uSplit, params.rgbSplit * 0.35);
     gl.uniform1f(this.moshProg.loc.uInjectBoost, injectBoost);
     gl.uniform1i(this.moshProg.loc.uChromaMode, chromaMode ? 1 : 0);
+    this.setColorUniforms(
+      this.moshProg,
+      color,
+      color.enabled && color.route === "body",
+    );
     gl.drawArrays(gl.TRIANGLES, 0, 3);
     ping.swap();
   }
@@ -740,6 +779,7 @@ export class SmooshRenderer {
     b: WebGLTexture,
     amount: number,
     target: Target,
+    color?: ColorSettings,
   ): void {
     const gl = this.gl;
     if (!gl) return;
@@ -754,10 +794,20 @@ export class SmooshRenderer {
     gl.bindTexture(gl.TEXTURE_2D, b);
     gl.uniform1i(this.mixProg.loc.uB, 1);
     gl.uniform1f(this.mixProg.loc.uMix, amount);
+    gl.uniform2f(this.mixProg.loc.uTexel, 1 / target.w, 1 / target.h);
+    this.setColorUniforms(
+      this.mixProg,
+      color,
+      !!color?.enabled && color.route === "body",
+    );
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
 
-  private present(tex: WebGLTexture, symmetry: SymmetrySettings): void {
+  private present(
+    tex: WebGLTexture,
+    symmetry: SymmetrySettings,
+    color: ColorSettings,
+  ): void {
     const gl = this.gl;
     if (!gl) return;
     gl.bindVertexArray(this.vao);
@@ -767,13 +817,36 @@ export class SmooshRenderer {
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, tex);
     gl.uniform1i(this.blitProg.loc.uTex, 0);
+    gl.uniform2f(this.blitProg.loc.uTexel, 1 / this.w, 1 / this.h);
     gl.uniform1i(this.blitProg.loc.uSymmetryEnabled, symmetry.enabled ? 1 : 0);
     gl.uniform1f(this.blitProg.loc.uSymmetryAxis, symmetry.axis);
     gl.uniform1i(
       this.blitProg.loc.uSymmetrySide,
       symmetry.sourceSide === "left" ? 0 : 1,
     );
+    this.setColorUniforms(
+      this.blitProg,
+      color,
+      color.enabled && color.route === "output",
+    );
     gl.drawArrays(gl.TRIANGLES, 0, 3);
+  }
+
+  private setColorUniforms(
+    program: Program,
+    color: ColorSettings | undefined,
+    active: boolean,
+  ): void {
+    const gl = this.gl;
+    if (!gl) return;
+    gl.uniform1i(program.loc.uColorActive, active ? 1 : 0);
+    gl.uniform1i(
+      program.loc.uColorEffect,
+      color ? COLOR_EFFECT_INDEX[color.effect] : 0,
+    );
+    gl.uniform1f(program.loc.uColorSaturation, color?.saturation ?? 1);
+    gl.uniform1f(program.loc.uColorVibrance, color?.vibrance ?? 0);
+    gl.uniform1f(program.loc.uColorSharpness, color?.sharpness ?? 0);
   }
 
   private blitTextureTo(tex: WebGLTexture, target: Target): void {
@@ -786,9 +859,11 @@ export class SmooshRenderer {
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, tex);
     gl.uniform1i(this.blitProg.loc.uTex, 0);
+    gl.uniform2f(this.blitProg.loc.uTexel, 1 / target.w, 1 / target.h);
     gl.uniform1i(this.blitProg.loc.uSymmetryEnabled, 0);
     gl.uniform1f(this.blitProg.loc.uSymmetryAxis, 0.5);
     gl.uniform1i(this.blitProg.loc.uSymmetrySide, 0);
+    this.setColorUniforms(this.blitProg, undefined, false);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   }

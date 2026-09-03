@@ -68,11 +68,14 @@ import {
 } from "@/smoosh/state/presets";
 import { useSmoosh } from "@/smoosh/state/store";
 import {
+  COLOR_EFFECT_META,
   MODE_META,
   aspectValue,
   type AspectPreset,
   type AudioRoute,
   type BufferPattern,
+  type ColorEffect,
+  type ColorRoute,
   type QualityLevel,
   type SmooshMode,
 } from "@/smoosh/types";
@@ -86,6 +89,23 @@ const MODES: SmooshMode[] = [
   "hold",
   "chroma",
 ];
+
+const COLOR_EFFECTS: ColorEffect[] = [
+  "clean",
+  "mono",
+  "invert",
+  "posterize",
+  "solarize",
+  "false-color",
+];
+
+const COLOR_ROUTES: ColorRoute[] = ["body", "wind", "output"];
+
+const COLOR_ROUTE_HINTS: Record<ColorRoute, string> = {
+  body: "BODY stains the pixels before they enter the smear.",
+  wind: "WIND alters the motion reading, so the weather lies.",
+  output: "OUTPUT grades the finished smashed frame and the recording.",
+};
 
 export function SmooshApp() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -968,7 +988,7 @@ export function SmooshApp() {
             : "BUFFER EMPTY";
 
   return (
-    <div className="app-shell">
+    <div className={cn("app-shell", store.color.enabled && "color-feed-open")}>
       <div className="noise" aria-hidden />
       <header className="topbar">
         <button
@@ -1066,6 +1086,14 @@ export function SmooshApp() {
         >
           SYMMETRY
         </button>
+        <button
+          type="button"
+          className={cn(store.color.enabled && "on color-feed-toggle")}
+          aria-pressed={store.color.enabled}
+          onClick={() => store.setColor({ enabled: !store.color.enabled })}
+        >
+          COLOR FEED
+        </button>
         {store.symmetry.enabled && (
           <>
             <button
@@ -1104,6 +1132,8 @@ export function SmooshApp() {
           </>
         )}
       </div>
+
+      {store.color.enabled && <ColorFeedPanel />}
 
       <div
         className={cn(
@@ -1903,6 +1933,120 @@ function SlotCard({
           </div>
         </div>
       )}
+    </section>
+  );
+}
+
+function ColorFeedPanel() {
+  const store = useSmoosh();
+  const color = store.color;
+
+  function selectEffect(effect: ColorEffect) {
+    const defaults = COLOR_EFFECT_META[effect];
+    store.setColor({
+      enabled: true,
+      effect,
+      saturation: defaults.saturation,
+      vibrance: defaults.vibrance,
+      sharpness: defaults.sharpness,
+    });
+  }
+
+  function resetEffect() {
+    selectEffect(color.effect);
+  }
+
+  return (
+    <section className="color-feed" aria-label="Color Feed controls">
+      <div className="color-feed-head">
+        <div>
+          <strong>COLOR FEED</strong>
+          <span>{COLOR_EFFECT_META[color.effect].label}</span>
+        </div>
+        <button type="button" onClick={resetEffect}>
+          SWEET SPOT
+        </button>
+      </div>
+
+      <div className="color-feed-routes" aria-label="Color Feed route">
+        {COLOR_ROUTES.map((route) => (
+          <button
+            key={route}
+            type="button"
+            className={cn(color.route === route && "on")}
+            aria-pressed={color.route === route}
+            onClick={() => store.setColor({ route })}
+          >
+            {route.toUpperCase()}
+          </button>
+        ))}
+        <p aria-live="polite">{COLOR_ROUTE_HINTS[color.route]}</p>
+      </div>
+
+      <div className="color-effect-rail" aria-label="Color Feed treatments">
+        {COLOR_EFFECTS.map((effect) => (
+          <button
+            key={effect}
+            type="button"
+            className={cn(color.effect === effect && "on")}
+            aria-pressed={color.effect === effect}
+            onClick={() => selectEffect(effect)}
+          >
+            {COLOR_EFFECT_META[effect].label}
+          </button>
+        ))}
+      </div>
+
+      <div className="color-knobs">
+        <label>
+          <span>
+            SATURATION <b>{Math.round(color.saturation * 100)}%</b>
+          </span>
+          <input
+            type="range"
+            min={0}
+            max={2.5}
+            step={0.01}
+            value={color.saturation}
+            aria-label="Color Feed saturation"
+            onChange={(event) =>
+              store.setColor({ saturation: Number(event.target.value) })
+            }
+          />
+        </label>
+        <label>
+          <span>
+            VIBRANCE <b>{Math.round(color.vibrance * 100)}%</b>
+          </span>
+          <input
+            type="range"
+            min={-1}
+            max={1}
+            step={0.01}
+            value={color.vibrance}
+            aria-label="Color Feed vibrance"
+            onChange={(event) =>
+              store.setColor({ vibrance: Number(event.target.value) })
+            }
+          />
+        </label>
+        <label>
+          <span>
+            SHARPNESS <b>{Math.round(color.sharpness * 100)}%</b>
+          </span>
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.01}
+            value={color.sharpness}
+            aria-label="Color Feed sharpness"
+            onChange={(event) =>
+              store.setColor({ sharpness: Number(event.target.value) })
+            }
+          />
+        </label>
+      </div>
     </section>
   );
 }

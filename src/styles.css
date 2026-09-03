@@ -428,6 +428,148 @@ body {
     color-mix(in oklab, var(--color-cyan) 12%, transparent);
 }
 
+.color-feed {
+  width: min(100%, 640px);
+  margin: 0 auto;
+  padding: 8px;
+  display: grid;
+  gap: 7px;
+  border: 1px solid color-mix(in oklab, var(--color-orange) 52%, transparent);
+  border-radius: 13px;
+  background:
+    linear-gradient(
+      115deg,
+      color-mix(in oklab, var(--color-pink) 9%, transparent),
+      color-mix(in oklab, var(--color-cyan) 7%, transparent)
+    ),
+    var(--color-ink-2);
+  box-shadow: inset 0 0 20px
+    color-mix(in oklab, var(--color-orange) 7%, transparent);
+}
+
+.color-feed button {
+  min-height: 30px;
+  padding: 0 9px;
+  border: 1px solid color-mix(in oklab, var(--color-chrome) 28%, transparent);
+  border-radius: 8px;
+  background: var(--color-ink-3);
+  color: var(--color-fog);
+  font-size: 0.58rem;
+  font-weight: 850;
+  letter-spacing: 0.055em;
+  white-space: nowrap;
+}
+
+.color-feed button.on {
+  border-color: var(--color-yellow);
+  color: var(--color-yellow);
+  box-shadow:
+    inset 0 0 11px color-mix(in oklab, var(--color-orange) 16%, transparent),
+    0 0 8px color-mix(in oklab, var(--color-pink) 16%, transparent);
+}
+
+.color-feed-head,
+.color-feed-head > div,
+.color-feed-routes,
+.color-knobs label > span {
+  display: flex;
+  align-items: center;
+}
+
+.color-feed-head {
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.color-feed-head > div {
+  gap: 8px;
+}
+
+.color-feed-head strong {
+  font-family: var(--font-display);
+  font-size: 0.86rem;
+  letter-spacing: 0.08em;
+  color: var(--color-orange);
+}
+
+.color-feed-head span {
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--color-pink) 15%, transparent);
+  color: var(--color-pink);
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  font-weight: 800;
+}
+
+.color-feed-head button {
+  min-height: 26px;
+  color: var(--color-cyan);
+}
+
+.color-feed-routes {
+  gap: 5px;
+  min-width: 0;
+}
+
+.color-feed-routes p {
+  min-width: 0;
+  margin: 0 0 0 4px;
+  overflow: hidden;
+  color: var(--color-fog);
+  font-size: 0.62rem;
+  line-height: 1.2;
+}
+
+.color-effect-rail {
+  display: flex;
+  gap: 5px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+}
+
+.color-effect-rail::-webkit-scrollbar {
+  display: none;
+}
+
+.color-effect-rail button {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+}
+
+.color-knobs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.color-knobs label {
+  min-width: 0;
+}
+
+.color-knobs label > span {
+  justify-content: space-between;
+  gap: 4px;
+  color: var(--color-fog);
+  font-size: 0.54rem;
+  font-weight: 800;
+  letter-spacing: 0.035em;
+}
+
+.color-knobs b {
+  color: var(--color-cyan);
+  font-family: var(--font-mono);
+  font-weight: 800;
+}
+
+.color-knobs input {
+  width: 100%;
+  min-width: 0;
+  accent-color: var(--color-orange);
+}
+
 .rec-chip,
 .mode-chip {
   position: absolute;
@@ -1437,8 +1579,39 @@ body {
     max-height: min(54dvh, calc(100dvh - 180px), 620px);
   }
 
+  .color-feed-open .stage {
+    max-height: min(43dvh, calc(100dvh - 290px), 500px);
+  }
+
   .stage-actions {
     min-height: 32px;
+  }
+
+  .color-feed {
+    width: 100%;
+    padding: 7px;
+    gap: 6px;
+  }
+
+  .color-feed-routes {
+    flex-wrap: wrap;
+  }
+
+  .color-feed-routes p {
+    flex: 1 0 100%;
+    margin: 0;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .color-knobs {
+    gap: 5px;
+  }
+
+  .color-knobs label > span {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0;
   }
 
   .compare-handle::after {
