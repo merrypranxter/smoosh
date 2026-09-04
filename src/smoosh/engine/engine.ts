@@ -40,6 +40,7 @@ export class SmooshEngine {
   private crossElapsed = 0;
   private bufferBody: HTMLCanvasElement | null = null;
   private lastBufferPattern: BufferPattern | null = null;
+  private macroClock = 0;
 
   constructor(
     hub: MediaHub,
@@ -246,6 +247,7 @@ export class SmooshEngine {
       );
       this.cleanPulse = Math.max(0, this.cleanPulse - dt * 2.2);
     }
+    if (s.mode === "macro") this.macroClock += dt;
 
     const route = routeModeSources(s.mode, hasA, hasB);
     let pixels = this.hub.drawable(route.pixels);
@@ -308,6 +310,8 @@ export class SmooshEngine {
       useHeldFlow: s.mode === "buffer" || s.mode === "hold",
       symmetry: s.symmetry,
       color: s.color,
+      macro: s.macro,
+      macroTime: this.macroClock,
     });
 
     const outputW = 240;

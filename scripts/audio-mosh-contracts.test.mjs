@@ -61,9 +61,8 @@ test("A, B, both, and silence are explicit and swapping can reuse media nodes", 
   assert.match(ui, /if \(audioMosh\.enabled\) void bindCurrentAudio\(\)/);
 });
 
-test("Audio Mosh is an organ, not an eighth visual mode", () => {
+test("Audio Mosh remains an organ while Macroblock Theft is the eighth visual mode", () => {
   assert.match(ui, /AUDIO MOSH/);
   const modes = ui.match(/const MODES:[\s\S]*?\];/)?.[0] ?? "";
-  assert.equal([...modes.matchAll(/^\s*"[a-z]+",$/gm)].length, 7);
+  assert.equal([...modes.matchAll(/^\s*"[a-z]+",$/gm)].length, 8);
 });
-

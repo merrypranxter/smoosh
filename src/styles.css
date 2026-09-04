@@ -1060,6 +1060,70 @@ body {
   white-space: nowrap;
 }
 
+.macro-controls {
+  display: grid;
+  grid-template-columns: auto repeat(3, minmax(100px, 1fr));
+  gap: 8px;
+  align-items: center;
+  padding: 8px;
+  border: 1px solid color-mix(in oklab, var(--color-yellow) 46%, transparent);
+  border-radius: 13px;
+  background: color-mix(in oklab, var(--color-ink-2) 94%, var(--color-yellow));
+}
+
+.macro-title {
+  display: grid;
+  gap: 4px;
+}
+
+.macro-title strong {
+  color: var(--color-yellow);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+}
+
+.macro-title button {
+  min-height: 25px;
+  padding: 0 6px;
+  border: 1px solid color-mix(in oklab, var(--color-yellow) 42%, transparent);
+  border-radius: 7px;
+  background: var(--color-ink-3);
+  color: var(--color-fog);
+  font-size: 0.5rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
+.macro-knob {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.macro-knob > span {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  color: var(--color-fog);
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.macro-knob b {
+  color: var(--color-yellow);
+  font-weight: 800;
+}
+
+.macro-knob input[type="range"] {
+  width: 100%;
+  min-height: 22px;
+  accent-color: var(--color-yellow);
+}
+
 .procession {
   min-width: 0;
   display: grid;
@@ -1247,6 +1311,29 @@ body {
   .mode-oracle {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .macro-controls {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    padding: 7px;
+  }
+
+  .macro-title {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .macro-title button {
+    min-height: 28px;
+  }
+
+  .macro-knob > span {
+    flex-direction: column;
+    gap: 1px;
+    font-size: 0.5rem;
   }
 
   .procession {

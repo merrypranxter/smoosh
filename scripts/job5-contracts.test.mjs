@@ -40,9 +40,9 @@ test("the recording sheet keeps a real iPhone save action above the preview", ()
   assert.match(recorder, /nav\.share\(\{ files: \[file\]/);
 });
 
-test("Job 5 adds organs without adding an eighth effect mode", () => {
+test("Job 5 organs remain while Macroblock Theft adds the eighth effect mode", () => {
   const modes = ui.match(/const MODES:[\s\S]*?\];/)?.[0] ?? "";
-  assert.equal([...modes.matchAll(/^\s*"[a-z]+",$/gm)].length, 7);
+  assert.equal([...modes.matchAll(/^\s*"[a-z]+",$/gm)].length, 8);
   for (const action of ["SNAP TO A", "COMPARE", "CAM", "SEEDS"]) {
     assert.match(ui, new RegExp(action));
   }

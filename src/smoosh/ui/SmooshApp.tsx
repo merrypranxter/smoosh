@@ -71,6 +71,7 @@ import {
 import { useSmoosh } from "@/smoosh/state/store";
 import {
   COLOR_EFFECT_META,
+  DEFAULT_MACRO,
   MODE_META,
   aspectValue,
   type AspectPreset,
@@ -90,6 +91,7 @@ const MODES: SmooshMode[] = [
   "buffer",
   "hold",
   "chroma",
+  "macro",
 ];
 
 const COLOR_EFFECTS: ColorEffect[] = [
@@ -1389,6 +1391,8 @@ export function SmooshApp() {
             )}
           </div>
 
+          {store.mode === "macro" && <MacroblockControls />}
+
           <ProcessionStrip
             steps={processionSteps}
             running={processionRunning}
@@ -2556,6 +2560,74 @@ function QuickControls() {
           value={p.mix}
           onChange={(event) =>
             store.setParam("mix", Number(event.target.value))
+          }
+        />
+      </label>
+    </section>
+  );
+}
+
+function MacroblockControls() {
+  const store = useSmoosh();
+  const macro = store.macro;
+
+  return (
+    <section className="macro-controls" aria-label="Macroblock Theft controls">
+      <div className="macro-title">
+        <strong>BLOCK CRIME</strong>
+        <button
+          type="button"
+          onClick={() => store.setMacro(DEFAULT_MACRO)}
+          aria-label="Reset Macroblock Theft controls to sweet spot"
+        >
+          SWEET SPOT
+        </button>
+      </div>
+      <label className="macro-knob">
+        <span>
+          BLOCK SIZE <b>{macro.blockSize}px</b>
+        </span>
+        <input
+          aria-label="Macroblock size"
+          type="range"
+          min={8}
+          max={64}
+          step={4}
+          value={macro.blockSize}
+          onChange={(event) =>
+            store.setMacro({ blockSize: Number(event.target.value) })
+          }
+        />
+      </label>
+      <label className="macro-knob">
+        <span>
+          THEFT <b>{Math.round(macro.theft * 100)}%</b>
+        </span>
+        <input
+          aria-label="Macroblock theft"
+          type="range"
+          min={0}
+          max={1}
+          step={0.01}
+          value={macro.theft}
+          onChange={(event) =>
+            store.setMacro({ theft: Number(event.target.value) })
+          }
+        />
+      </label>
+      <label className="macro-knob">
+        <span>
+          MEMORY <b>{Math.round(macro.memory * 100)}%</b>
+        </span>
+        <input
+          aria-label="Macroblock memory"
+          type="range"
+          min={0}
+          max={1}
+          step={0.01}
+          value={macro.memory}
+          onChange={(event) =>
+            store.setMacro({ memory: Number(event.target.value) })
           }
         />
       </label>

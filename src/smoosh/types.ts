@@ -1,5 +1,12 @@
 export type SmooshMode =
-  "transfer" | "cross" | "freeze" | "self" | "buffer" | "hold" | "chroma";
+  | "transfer"
+  | "cross"
+  | "freeze"
+  | "self"
+  | "buffer"
+  | "hold"
+  | "chroma"
+  | "macro";
 
 export type QualityLevel = "performance" | "balanced" | "high";
 
@@ -81,6 +88,18 @@ export interface SymmetrySettings {
   axis: number;
   sourceSide: SymmetrySide;
 }
+
+export interface MacroSettings {
+  blockSize: number;
+  theft: number;
+  memory: number;
+}
+
+export const DEFAULT_MACRO: MacroSettings = {
+  blockSize: 24,
+  theft: 0.58,
+  memory: 0.72,
+};
 
 export const DEFAULT_SYMMETRY: SymmetrySettings = {
   enabled: false,
@@ -165,6 +184,10 @@ export const MODE_META: Record<SmooshMode, { label: string; hint: string }> = {
   chroma: {
     label: "CHROMA SPLIT FLOW",
     hint: "Red, green, and blue catch different winds. Registration is a lie.",
+  },
+  macro: {
+    label: "MACROBLOCK THEFT",
+    hint: "A steals rectangular chunks from B and its own past. The blocks remember.",
   },
 };
 

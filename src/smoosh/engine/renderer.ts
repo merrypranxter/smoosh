@@ -2,7 +2,9 @@ import type {
   ColorEffect,
   ColorSettings,
   EngineParams,
+  MacroSettings,
   QualityLevel,
+  SmooshMode,
   SymmetrySettings,
 } from "@/smoosh/types";
 import { qualityLongEdge } from "@/smoosh/types";
@@ -36,13 +38,15 @@ export interface RenderInputs {
   pixelsFill: "fill" | "fit";
   motionFill: "fill" | "fit";
   freezePixels: boolean;
-  mode: "transfer" | "cross" | "freeze" | "self" | "buffer" | "hold" | "chroma";
+  mode: SmooshMode;
   params: EngineParams;
   injectBoost: number;
   flowHold: boolean;
   useHeldFlow: boolean;
   symmetry: SymmetrySettings;
   color: ColorSettings;
+  macro: MacroSettings;
+  macroTime: number;
 }
 
 export interface PrimeInputs {
@@ -218,6 +222,12 @@ export class SmooshRenderer {
           "uSplit",
           "uInjectBoost",
           "uChromaMode",
+          "uDonor",
+          "uMacroMode",
+          "uMacroBlockPx",
+          "uMacroTheft",
+          "uMacroMemory",
+          "uMacroTime",
           ...COLOR_UNIFORMS,
         ]),
       };
@@ -595,7 +605,10 @@ export class SmooshRenderer {
       this.motionAFlip = !this.motionAFlip;
     }
 
-    if (input.mode === "cross" && mediaReady(input.pixelsB)) {
+    if (
+      (input.mode === "cross" || input.mode === "macro") &&
+      mediaReady(input.pixelsB)
+    ) {
       this.capture(
         this.capturePixelsB,
         input.pixelsB as Drawable,
@@ -640,6 +653,10 @@ export class SmooshRenderer {
       moshParams,
       input.injectBoost,
       input.mode === "chroma",
+      input.mode === "macro",
+      this.pixelsBTex,
+      input.macro,
+      input.macroTime,
       input.color,
     );
 
@@ -653,6 +670,10 @@ export class SmooshRenderer {
         moshParams,
         input.injectBoost,
         false,
+        false,
+        this.pixelsTex,
+        input.macro,
+        input.macroTime,
         input.color,
       );
       this.mixFeedbacks(input.params.crossBalance);
@@ -729,6 +750,10 @@ export class SmooshRenderer {
     params: EngineParams,
     injectBoost: number,
     chromaMode: boolean,
+    macroMode: boolean,
+    donor: WebGLTexture | null,
+    macro: MacroSettings,
+    macroTime: number,
     color: ColorSettings,
   ): void {
     const gl = this.gl;
@@ -746,6 +771,9 @@ export class SmooshRenderer {
     gl.activeTexture(gl.TEXTURE2);
     gl.bindTexture(gl.TEXTURE_2D, flow);
     gl.uniform1i(this.moshProg.loc.uFlow, 2);
+    gl.activeTexture(gl.TEXTURE3);
+    gl.bindTexture(gl.TEXTURE_2D, donor ?? source);
+    gl.uniform1i(this.moshProg.loc.uDonor, 3);
     gl.uniform2f(this.moshProg.loc.uTexel, 1 / this.w, 1 / this.h);
     gl.uniform1f(this.moshProg.loc.uRefresh, params.sourceRefresh);
     gl.uniform1f(this.moshProg.loc.uPersist, params.persistence);
@@ -757,6 +785,11 @@ export class SmooshRenderer {
     gl.uniform1f(this.moshProg.loc.uSplit, params.rgbSplit * 0.35);
     gl.uniform1f(this.moshProg.loc.uInjectBoost, injectBoost);
     gl.uniform1i(this.moshProg.loc.uChromaMode, chromaMode ? 1 : 0);
+    gl.uniform1i(this.moshProg.loc.uMacroMode, macroMode ? 1 : 0);
+    gl.uniform1f(this.moshProg.loc.uMacroBlockPx, macro.blockSize);
+    gl.uniform1f(this.moshProg.loc.uMacroTheft, macro.theft);
+    gl.uniform1f(this.moshProg.loc.uMacroMemory, macro.memory);
+    gl.uniform1f(this.moshProg.loc.uMacroTime, macroTime);
     this.setColorUniforms(
       this.moshProg,
       color,

@@ -178,6 +178,7 @@ out vec4 fragColor;
 uniform sampler2D uFeedback;
 uniform sampler2D uSource;
 uniform sampler2D uFlow;
+uniform sampler2D uDonor;
 uniform vec2 uTexel;
 uniform float uRefresh;
 uniform float uPersist;
@@ -189,6 +190,11 @@ uniform float uTear;
 uniform float uSplit;
 uniform float uInjectBoost;
 uniform int uChromaMode;
+uniform int uMacroMode;
+uniform float uMacroBlockPx;
+uniform float uMacroTheft;
+uniform float uMacroMemory;
+uniform float uMacroTime;
 ${FLOW_COMMON}
 ${COLOR_COMMON}
 
@@ -198,8 +204,45 @@ vec2 rotate(vec2 p, float a) {
   return vec2(c * p.x - s * p.y, s * p.x + c * p.y);
 }
 
+float macroHash(vec2 p) {
+  p = fract(p * vec2(123.34, 456.21));
+  p += dot(p, p + 45.32);
+  return fract(p.x * p.y);
+}
+
+vec2 macroHash2(vec2 p) {
+  return vec2(macroHash(p + 17.17), macroHash(p + 71.71));
+}
+
 void main() {
   vec2 flow = decodeFlow(texture(uFlow, vUv).xy) * uGain;
+
+  if (uMacroMode == 1) {
+    vec2 blockUv = max(uTexel * uMacroBlockPx, uTexel * 4.0);
+    vec2 cell = floor(vUv / blockUv);
+    vec2 local = fract(vUv / blockUv);
+    float cadence = mix(8.0, 0.7, uMacroMemory);
+    float epoch = floor(uMacroTime * cadence);
+    float steal = step(1.0 - uMacroTheft, macroHash(cell + epoch * 0.137));
+    vec2 jump = floor((macroHash2(cell + epoch * 0.311) - 0.5) * mix(2.0, 12.0, uMacroTheft));
+    vec2 wholeFlow = floor(flow / blockUv + 0.5) * blockUv;
+    vec2 feedbackUv = clamp((cell + jump + local) * blockUv - wholeFlow, vec2(0.0), vec2(1.0));
+    vec2 donorJump = floor((macroHash2(cell + epoch * 0.193 + 9.0) - 0.5) * 8.0);
+    vec2 donorUv = clamp((cell + donorJump + local) * blockUv, vec2(0.0), vec2(1.0));
+    vec3 remembered = texture(uFeedback, clamp(vUv - wholeFlow, vec2(0.0), vec2(1.0))).rgb;
+    vec3 stolenPast = texture(uFeedback, feedbackUv).rgb;
+    vec3 stolenDonor = colorFeedSample(uDonor, donorUv, uTexel);
+    float donorChoice = step(0.46, macroHash(cell + epoch * 0.257 + 33.0));
+    vec3 stolen = mix(stolenPast, stolenDonor, donorChoice);
+    vec3 blocks = mix(remembered, stolen, steal * (0.48 + uMacroTheft * 0.52));
+    blocks *= mix(0.9, 0.999, uMacroMemory);
+    vec3 src = colorFeedSample(uSource, vUv, uTexel);
+    float inj = clamp(uRefresh * 0.3 + uInjectBoost * 0.38, 0.0, 1.0);
+    vec3 color = mix(blocks, src, inj);
+    color = mix(color, src, uBleed * 0.4);
+    fragColor = vec4(clamp(color, 0.0, 1.0), 1.0);
+    return;
+  }
 
   vec2 fdx = dFdx(flow);
   vec2 fdy = dFdy(flow);

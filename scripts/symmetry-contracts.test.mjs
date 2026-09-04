@@ -8,7 +8,7 @@ const store = readFileSync("src/smoosh/state/store.ts", "utf8");
 const types = readFileSync("src/smoosh/types.ts", "utf8");
 const ui = readFileSync("src/smoosh/ui/SmooshApp.tsx", "utf8");
 
-test("symmetry is a recorded presentation modifier, not an eighth mode", () => {
+test("symmetry remains a recorded modifier while the mode rail grows", () => {
   assert.match(
     renderer,
     /this\.present\(present, input\.symmetry, input\.color\)/,
@@ -16,7 +16,7 @@ test("symmetry is a recorded presentation modifier, not an eighth mode", () => {
   assert.match(renderer, /uSymmetryEnabled, symmetry\.enabled \? 1 : 0/);
   assert.match(renderer, /uSymmetryEnabled, 0/);
   const modes = ui.match(/const MODES:[\s\S]*?\];/)?.[0] ?? "";
-  assert.equal([...modes.matchAll(/^\s*"[a-z]+",$/gm)].length, 7);
+  assert.equal([...modes.matchAll(/^\s*"[a-z]+",$/gm)].length, 8);
 });
 
 test("the bilateral shader can reflect from either movable side", () => {

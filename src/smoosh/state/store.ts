@@ -2,6 +2,7 @@ import { create } from "zustand";
 import {
   DEFAULT_PARAMS,
   DEFAULT_COLOR,
+  DEFAULT_MACRO,
   DEFAULT_SYMMETRY,
   SAFE_RANDOM_RANGES,
   type AspectPreset,
@@ -9,6 +10,7 @@ import {
   type BufferPattern,
   type ColorSettings,
   type EngineParams,
+  type MacroSettings,
   type QualityLevel,
   type SlotState,
   type SmooshMode,
@@ -48,6 +50,7 @@ export interface SmooshStore {
   swapped: boolean;
   symmetry: SymmetrySettings;
   color: ColorSettings;
+  macro: MacroSettings;
   setParam: <K extends keyof EngineParams>(
     key: K,
     value: EngineParams[K],
@@ -71,6 +74,7 @@ export interface SmooshStore {
   setSourceAspect: (n: number) => void;
   setSymmetry: (patch: Partial<SymmetrySettings>) => void;
   setColor: (patch: Partial<ColorSettings>) => void;
+  setMacro: (patch: Partial<MacroSettings>) => void;
   resetParams: () => void;
   randomizeParams: () => void;
 }
@@ -130,6 +134,7 @@ export const useSmoosh = create<SmooshStore>((set, get) => ({
   swapped: false,
   symmetry: { ...DEFAULT_SYMMETRY },
   color: { ...DEFAULT_COLOR },
+  macro: { ...DEFAULT_MACRO },
   setParam: (key, value) =>
     set((s) => ({ params: { ...s.params, [key]: value } })),
   setParams: (p) => set({ params: { ...DEFAULT_PARAMS, ...p } }),
@@ -212,6 +217,21 @@ export const useSmoosh = create<SmooshStore>((set, get) => ({
         sharpness: Math.min(
           1,
           Math.max(0, patch.sharpness ?? state.color.sharpness),
+        ),
+      },
+    })),
+  setMacro: (patch) =>
+    set((state) => ({
+      macro: {
+        ...state.macro,
+        ...patch,
+        blockSize: Math.round(
+          Math.min(64, Math.max(8, patch.blockSize ?? state.macro.blockSize)),
+        ),
+        theft: Math.min(1, Math.max(0, patch.theft ?? state.macro.theft)),
+        memory: Math.min(
+          1,
+          Math.max(0, patch.memory ?? state.macro.memory),
         ),
       },
     })),
