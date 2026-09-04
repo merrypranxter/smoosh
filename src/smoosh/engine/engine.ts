@@ -41,6 +41,7 @@ export class SmooshEngine {
   private bufferBody: HTMLCanvasElement | null = null;
   private lastBufferPattern: BufferPattern | null = null;
   private macroClock = 0;
+  private sliceClock = 0;
 
   constructor(
     hub: MediaHub,
@@ -248,6 +249,7 @@ export class SmooshEngine {
       this.cleanPulse = Math.max(0, this.cleanPulse - dt * 2.2);
     }
     if (s.mode === "macro") this.macroClock += dt;
+    if (s.mode === "slice") this.sliceClock += dt;
 
     const route = routeModeSources(s.mode, hasA, hasB);
     let pixels = this.hub.drawable(route.pixels);
@@ -312,6 +314,8 @@ export class SmooshEngine {
       color: s.color,
       macro: s.macro,
       macroTime: this.macroClock,
+      slice: s.slice,
+      sliceTime: this.sliceClock,
     });
 
     const outputW = 240;

@@ -195,6 +195,12 @@ uniform float uMacroBlockPx;
 uniform float uMacroTheft;
 uniform float uMacroMemory;
 uniform float uMacroTime;
+uniform int uSliceMode;
+uniform float uSliceWidthPx;
+uniform float uSliceDrift;
+uniform float uSliceSpeed;
+uniform float uSliceTime;
+uniform int uSliceOrientation;
 ${FLOW_COMMON}
 ${COLOR_COMMON}
 
@@ -240,6 +246,35 @@ void main() {
     float inj = clamp(uRefresh * 0.3 + uInjectBoost * 0.38, 0.0, 1.0);
     vec3 color = mix(blocks, src, inj);
     color = mix(color, src, uBleed * 0.4);
+    fragColor = vec4(clamp(color, 0.0, 1.0), 1.0);
+    return;
+  }
+
+  if (uSliceMode == 1) {
+    float axisTexel = uSliceOrientation == 0 ? uTexel.x : uTexel.y;
+    float bandUv = max(axisTexel * uSliceWidthPx, axisTexel * 3.0);
+    float axis = uSliceOrientation == 0 ? vUv.x : vUv.y;
+    float band = floor(axis / bandUv);
+    float stripPhase = fract(uSliceTime * uSliceSpeed * 0.34 + band * 0.173);
+    float age = 1.0 - stripPhase;
+    float stagger = macroHash(vec2(band, floor(uSliceTime * 0.19)));
+    float signFlip = step(0.5, macroHash(vec2(band, 19.7))) * 2.0 - 1.0;
+    float offset = signFlip * (0.008 + stagger * 0.115) * uSliceDrift * age;
+    vec2 stripNudge = uSliceOrientation == 0 ? vec2(0.0, offset) : vec2(offset, 0.0);
+    vec2 oldUv = clamp(
+      vUv - flow * mix(0.25, 1.25, uSliceDrift) - stripNudge,
+      vec2(0.0),
+      vec2(1.0)
+    );
+    vec3 oldStrip = texture(uFeedback, oldUv).rgb * uPersist;
+    vec3 src = colorFeedSample(uSource, vUv, uTexel);
+    float writePulse = smoothstep(0.86, 0.98, stripPhase);
+    float writeAmount = writePulse * (0.42 + uRefresh * 0.48);
+    writeAmount *= 1.0 - uInjectBoost * 0.42;
+    vec3 color = mix(oldStrip, src, writeAmount);
+    float seam = smoothstep(0.86, 0.99, fract(axis / bandUv));
+    color *= 1.0 - seam * uSliceDrift * 0.12;
+    color = mix(color, src, uBleed * 0.32);
     fragColor = vec4(clamp(color, 0.0, 1.0), 1.0);
     return;
   }

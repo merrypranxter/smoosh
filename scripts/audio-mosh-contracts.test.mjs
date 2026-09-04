@@ -56,13 +56,16 @@ test("A, B, both, and silence are explicit and swapping can reuse media nodes", 
   for (const label of ["A ONLY", "B ONLY", "BOTH", "SILENT"]) {
     assert.match(ui, new RegExp(label));
   }
-  assert.match(recorder, /WeakMap<HTMLMediaElement, MediaElementAudioSourceNode>/);
+  assert.match(
+    recorder,
+    /WeakMap<HTMLMediaElement, MediaElementAudioSourceNode>/,
+  );
   assert.match(recorder, /private nodeFor\(/);
   assert.match(ui, /if \(audioMosh\.enabled\) void bindCurrentAudio\(\)/);
 });
 
-test("Audio Mosh remains an organ while Macroblock Theft is the eighth visual mode", () => {
+test("Audio Mosh remains an organ while the visual mode rail grows", () => {
   assert.match(ui, /AUDIO MOSH/);
   const modes = ui.match(/const MODES:[\s\S]*?\];/)?.[0] ?? "";
-  assert.equal([...modes.matchAll(/^\s*"[a-z]+",$/gm)].length, 8);
+  assert.equal([...modes.matchAll(/^\s*"[a-z]+",$/gm)].length, 9);
 });

@@ -3,6 +3,7 @@ import {
   DEFAULT_PARAMS,
   DEFAULT_COLOR,
   DEFAULT_MACRO,
+  DEFAULT_SLICE,
   DEFAULT_SYMMETRY,
   SAFE_RANDOM_RANGES,
   type AspectPreset,
@@ -11,6 +12,7 @@ import {
   type ColorSettings,
   type EngineParams,
   type MacroSettings,
+  type SliceSettings,
   type QualityLevel,
   type SlotState,
   type SmooshMode,
@@ -51,6 +53,7 @@ export interface SmooshStore {
   symmetry: SymmetrySettings;
   color: ColorSettings;
   macro: MacroSettings;
+  slice: SliceSettings;
   setParam: <K extends keyof EngineParams>(
     key: K,
     value: EngineParams[K],
@@ -75,6 +78,7 @@ export interface SmooshStore {
   setSymmetry: (patch: Partial<SymmetrySettings>) => void;
   setColor: (patch: Partial<ColorSettings>) => void;
   setMacro: (patch: Partial<MacroSettings>) => void;
+  setSlice: (patch: Partial<SliceSettings>) => void;
   resetParams: () => void;
   randomizeParams: () => void;
 }
@@ -135,6 +139,7 @@ export const useSmoosh = create<SmooshStore>((set, get) => ({
   symmetry: { ...DEFAULT_SYMMETRY },
   color: { ...DEFAULT_COLOR },
   macro: { ...DEFAULT_MACRO },
+  slice: { ...DEFAULT_SLICE },
   setParam: (key, value) =>
     set((s) => ({ params: { ...s.params, [key]: value } })),
   setParams: (p) => set({ params: { ...DEFAULT_PARAMS, ...p } }),
@@ -229,9 +234,21 @@ export const useSmoosh = create<SmooshStore>((set, get) => ({
           Math.min(64, Math.max(8, patch.blockSize ?? state.macro.blockSize)),
         ),
         theft: Math.min(1, Math.max(0, patch.theft ?? state.macro.theft)),
-        memory: Math.min(
-          1,
-          Math.max(0, patch.memory ?? state.macro.memory),
+        memory: Math.min(1, Math.max(0, patch.memory ?? state.macro.memory)),
+      },
+    })),
+  setSlice: (patch) =>
+    set((state) => ({
+      slice: {
+        ...state.slice,
+        ...patch,
+        slitWidth: Math.round(
+          Math.min(64, Math.max(4, patch.slitWidth ?? state.slice.slitWidth)),
+        ),
+        drift: Math.min(1, Math.max(0, patch.drift ?? state.slice.drift)),
+        scanSpeed: Math.min(
+          3,
+          Math.max(0.1, patch.scanSpeed ?? state.slice.scanSpeed),
         ),
       },
     })),

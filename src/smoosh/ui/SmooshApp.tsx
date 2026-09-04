@@ -72,6 +72,7 @@ import { useSmoosh } from "@/smoosh/state/store";
 import {
   COLOR_EFFECT_META,
   DEFAULT_MACRO,
+  DEFAULT_SLICE,
   MODE_META,
   aspectValue,
   type AspectPreset,
@@ -92,6 +93,7 @@ const MODES: SmooshMode[] = [
   "hold",
   "chroma",
   "macro",
+  "slice",
 ];
 
 const COLOR_EFFECTS: ColorEffect[] = [
@@ -1392,6 +1394,7 @@ export function SmooshApp() {
           </div>
 
           {store.mode === "macro" && <MacroblockControls />}
+          {store.mode === "slice" && <TimeSliceControls />}
 
           <ProcessionStrip
             steps={processionSteps}
@@ -2628,6 +2631,88 @@ function MacroblockControls() {
           value={macro.memory}
           onChange={(event) =>
             store.setMacro({ memory: Number(event.target.value) })
+          }
+        />
+      </label>
+    </section>
+  );
+}
+
+function TimeSliceControls() {
+  const store = useSmoosh();
+  const slice = store.slice;
+
+  return (
+    <section className="slice-controls" aria-label="Time-Slice controls">
+      <div className="slice-title">
+        <strong>TIME KNIFE</strong>
+        <div className="slice-actions" aria-label="Slit orientation">
+          {(["vertical", "horizontal"] as const).map((orientation) => (
+            <button
+              key={orientation}
+              type="button"
+              className={cn(slice.orientation === orientation && "on")}
+              aria-pressed={slice.orientation === orientation}
+              onClick={() => store.setSlice({ orientation })}
+            >
+              {orientation === "vertical" ? "VERT" : "HORIZ"}
+            </button>
+          ))}
+          <button
+            type="button"
+            className="slice-sweet"
+            onClick={() => store.setSlice(DEFAULT_SLICE)}
+            aria-label="Reset Time-Slice controls to sweet spot"
+          >
+            SWEET SPOT
+          </button>
+        </div>
+      </div>
+      <label className="slice-knob">
+        <span>
+          SLIT WIDTH <b>{slice.slitWidth}px</b>
+        </span>
+        <input
+          aria-label="Time-Slice slit width"
+          type="range"
+          min={4}
+          max={64}
+          step={2}
+          value={slice.slitWidth}
+          onChange={(event) =>
+            store.setSlice({ slitWidth: Number(event.target.value) })
+          }
+        />
+      </label>
+      <label className="slice-knob">
+        <span>
+          TIME DRIFT <b>{Math.round(slice.drift * 100)}%</b>
+        </span>
+        <input
+          aria-label="Time-Slice drift"
+          type="range"
+          min={0}
+          max={1}
+          step={0.01}
+          value={slice.drift}
+          onChange={(event) =>
+            store.setSlice({ drift: Number(event.target.value) })
+          }
+        />
+      </label>
+      <label className="slice-knob">
+        <span>
+          SCAN SPEED <b>{slice.scanSpeed.toFixed(2)}×</b>
+        </span>
+        <input
+          aria-label="Time-Slice scan speed"
+          type="range"
+          min={0.1}
+          max={3}
+          step={0.05}
+          value={slice.scanSpeed}
+          onChange={(event) =>
+            store.setSlice({ scanSpeed: Number(event.target.value) })
           }
         />
       </label>

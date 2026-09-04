@@ -23,6 +23,7 @@ const MODES = new Set<SmooshMode>([
   "hold",
   "chroma",
   "macro",
+  "slice",
 ]);
 
 export function defaultProcession(): ProcessionStep[] {
@@ -38,9 +39,15 @@ export function clampProcessionDuration(value: number): number {
   return Math.min(30, Math.max(0.5, Math.round(value * 2) / 2));
 }
 
-export function normalizeSavedProcession(value: unknown): SavedProcession | null {
+export function normalizeSavedProcession(
+  value: unknown,
+): SavedProcession | null {
   if (!value || typeof value !== "object") return null;
-  const candidate = value as { version?: unknown; loop?: unknown; steps?: unknown };
+  const candidate = value as {
+    version?: unknown;
+    loop?: unknown;
+    steps?: unknown;
+  };
   if (candidate.version !== 1 || !Array.isArray(candidate.steps)) return null;
 
   const steps: ProcessionStep[] = [];

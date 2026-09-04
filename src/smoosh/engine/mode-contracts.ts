@@ -31,7 +31,12 @@ export function routeModeSources(
       effectiveMode: "buffer",
     };
   }
-  if (mode === "hold" || mode === "chroma" || mode === "macro") {
+  if (
+    mode === "hold" ||
+    mode === "chroma" ||
+    mode === "macro" ||
+    mode === "slice"
+  ) {
     return {
       pixels: solo,
       motion: hasB ? "b" : solo,
@@ -68,7 +73,12 @@ export function needsSourceForMode(
 ): boolean {
   if (mode === "self") return !hasA && !hasB;
   if (mode === "buffer") return !primed && !hasA && !hasB;
-  if (mode === "hold" || mode === "chroma" || mode === "macro") {
+  if (
+    mode === "hold" ||
+    mode === "chroma" ||
+    mode === "macro" ||
+    mode === "slice"
+  ) {
     return !hasA && !hasB;
   }
   return !hasA || !hasB;

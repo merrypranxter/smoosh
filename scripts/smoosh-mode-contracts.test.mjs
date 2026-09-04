@@ -18,7 +18,7 @@ import {
 } from "../src/smoosh/procession.ts";
 import { MOSH_FRAG } from "../src/smoosh/engine/shaders.ts";
 
-test("the mode oracle uses exactly eight contracts", () => {
+test("the mode oracle uses exactly nine contracts", () => {
   assert.deepEqual(
     Object.fromEntries(
       Object.entries(MODE_META).map(([mode, meta]) => [mode, meta.hint]),
@@ -30,11 +30,14 @@ test("the mode oracle uses exactly eight contracts", () => {
       self: "One source is paint and wind. Feed it anything.",
       buffer: "Stop reading new frames. Keep dragging the sludge.",
       hold: "Keep the body. Keep applying new wind. This is the keyframe murder.",
-      chroma: "Red, green, and blue catch different winds. Registration is a lie.",
-      macro: "A steals rectangular chunks from B and its own past. The blocks remember.",
+      chroma:
+        "Red, green, and blue catch different winds. Registration is a lie.",
+      macro:
+        "A steals rectangular chunks from B and its own past. The blocks remember.",
+      slice: "Each strip lives at a different moment. Drag time sideways.",
     },
   );
-  assert.equal(Object.keys(MODE_META).length, 8);
+  assert.equal(Object.keys(MODE_META).length, 9);
 });
 
 test("moving transfer and cross route A pixels against B motion", () => {
@@ -88,10 +91,11 @@ test("source requirements match the one-source fallbacks", () => {
   assert.equal(needsSourceForMode("hold", true, false, false), false);
   assert.equal(needsSourceForMode("chroma", false, true, false), false);
   assert.equal(needsSourceForMode("macro", true, false, false), false);
+  assert.equal(needsSourceForMode("slice", false, true, false), false);
   assert.equal(needsSourceForMode("hold", false, false, true), true);
 });
 
-test("hold, chroma, and macro prefer B motion but fall back to a solo source", () => {
+test("one-source modes prefer B motion but fall back to a solo source", () => {
   assert.deepEqual(routeModeSources("hold", true, true), {
     pixels: "a",
     motion: "b",
@@ -121,6 +125,18 @@ test("hold, chroma, and macro prefer B motion but fall back to a solo source", (
     motion: "a",
     pixelsB: "a",
     effectiveMode: "macro",
+  });
+  assert.deepEqual(routeModeSources("slice", true, true), {
+    pixels: "a",
+    motion: "b",
+    pixelsB: "b",
+    effectiveMode: "slice",
+  });
+  assert.deepEqual(routeModeSources("slice", false, true), {
+    pixels: "b",
+    motion: "b",
+    pixelsB: "b",
+    effectiveMode: "slice",
   });
 });
 
@@ -160,7 +176,7 @@ test("procession restore clamps durations and caps the chain at eight", () => {
   assert.equal(clampProcessionDuration(4.26), 4.5);
 });
 
-test("procession restores the three added modes without accepting unknown modes", () => {
+test("procession restores added modes without accepting unknown modes", () => {
   const restored = normalizeSavedProcession({
     version: 1,
     loop: false,
@@ -168,21 +184,27 @@ test("procession restores the three added modes without accepting unknown modes"
       { id: "hold", mode: "hold", duration: 2 },
       { id: "chroma", mode: "chroma", duration: 3 },
       { id: "macro", mode: "macro", duration: 2.5 },
+      { id: "slice", mode: "slice", duration: 4.5 },
       { id: "nope", mode: "dice", duration: 4 },
     ],
   });
-  assert.deepEqual(restored?.steps.map((step) => step.mode), [
-    "hold",
-    "chroma",
-    "macro",
-  ]);
+  assert.deepEqual(
+    restored?.steps.map((step) => step.mode),
+    ["hold", "chroma", "macro", "slice"],
+  );
 });
 
 test("procession steps reorder without mutating the original chain", () => {
   const original = defaultProcession();
   const moved = moveProcessionStep(original, 2, 0);
-  assert.deepEqual(moved.map((step) => step.mode), ["buffer", "transfer", "freeze"]);
-  assert.deepEqual(original.map((step) => step.mode), ["transfer", "freeze", "buffer"]);
+  assert.deepEqual(
+    moved.map((step) => step.mode),
+    ["buffer", "transfer", "freeze"],
+  );
+  assert.deepEqual(
+    original.map((step) => step.mode),
+    ["transfer", "freeze", "buffer"],
+  );
 });
 
 test("procession advances, loops, and holds on the last step", () => {
@@ -198,6 +220,7 @@ test("procession mode changes preserve a primed feedback buffer", () => {
   assert.equal(shouldPrimeForMode("hold", true, true, true, true), false);
   assert.equal(shouldPrimeForMode("chroma", true, true, true, true), false);
   assert.equal(shouldPrimeForMode("macro", true, true, true, true), false);
+  assert.equal(shouldPrimeForMode("slice", true, true, true, true), false);
   assert.equal(shouldPrimeForMode("transfer", true, false, true, true), true);
   assert.equal(shouldPrimeForMode("self", false, true, true, true), true);
 });

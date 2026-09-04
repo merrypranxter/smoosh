@@ -1124,6 +1124,86 @@ body {
   accent-color: var(--color-yellow);
 }
 
+.slice-controls {
+  display: grid;
+  grid-template-columns: auto repeat(3, minmax(100px, 1fr));
+  gap: 8px;
+  align-items: center;
+  padding: 8px;
+  border: 1px solid color-mix(in oklab, var(--color-cyan) 48%, transparent);
+  border-radius: 13px;
+  background: color-mix(in oklab, var(--color-ink-2) 94%, var(--color-cyan));
+}
+
+.slice-title {
+  display: grid;
+  gap: 4px;
+}
+
+.slice-title > strong {
+  color: var(--color-cyan);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+}
+
+.slice-actions {
+  display: flex;
+  gap: 3px;
+}
+
+.slice-actions button {
+  min-height: 25px;
+  padding: 0 5px;
+  border: 1px solid color-mix(in oklab, var(--color-chrome) 28%, transparent);
+  border-radius: 7px;
+  background: var(--color-ink-3);
+  color: var(--color-fog);
+  font-size: 0.48rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.slice-actions button.on {
+  border-color: var(--color-cyan);
+  color: var(--color-cyan);
+}
+
+.slice-actions .slice-sweet {
+  border-color: color-mix(in oklab, var(--color-yellow) 50%, transparent);
+  color: var(--color-yellow);
+}
+
+.slice-knob {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.slice-knob > span {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  color: var(--color-fog);
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.slice-knob b {
+  color: var(--color-cyan);
+  font-weight: 800;
+}
+
+.slice-knob input[type="range"] {
+  width: 100%;
+  min-height: 22px;
+  accent-color: var(--color-cyan);
+}
+
 .procession {
   min-width: 0;
   display: grid;
@@ -1331,6 +1411,35 @@ body {
   }
 
   .macro-knob > span {
+    flex-direction: column;
+    gap: 1px;
+    font-size: 0.5rem;
+  }
+
+  .slice-controls {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    padding: 7px;
+  }
+
+  .slice-title {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+  }
+
+  .slice-actions {
+    min-width: 0;
+    overflow-x: auto;
+  }
+
+  .slice-actions button {
+    min-height: 28px;
+  }
+
+  .slice-knob > span {
     flex-direction: column;
     gap: 1px;
     font-size: 0.5rem;

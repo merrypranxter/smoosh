@@ -4,6 +4,7 @@ import type {
   EngineParams,
   MacroSettings,
   QualityLevel,
+  SliceSettings,
   SmooshMode,
   SymmetrySettings,
 } from "@/smoosh/types";
@@ -47,6 +48,8 @@ export interface RenderInputs {
   color: ColorSettings;
   macro: MacroSettings;
   macroTime: number;
+  slice: SliceSettings;
+  sliceTime: number;
 }
 
 export interface PrimeInputs {
@@ -228,6 +231,12 @@ export class SmooshRenderer {
           "uMacroTheft",
           "uMacroMemory",
           "uMacroTime",
+          "uSliceMode",
+          "uSliceWidthPx",
+          "uSliceDrift",
+          "uSliceSpeed",
+          "uSliceTime",
+          "uSliceOrientation",
           ...COLOR_UNIFORMS,
         ]),
       };
@@ -657,6 +666,9 @@ export class SmooshRenderer {
       this.pixelsBTex,
       input.macro,
       input.macroTime,
+      input.mode === "slice",
+      input.slice,
+      input.sliceTime,
       input.color,
     );
 
@@ -674,6 +686,9 @@ export class SmooshRenderer {
         this.pixelsTex,
         input.macro,
         input.macroTime,
+        false,
+        input.slice,
+        input.sliceTime,
         input.color,
       );
       this.mixFeedbacks(input.params.crossBalance);
@@ -754,6 +769,9 @@ export class SmooshRenderer {
     donor: WebGLTexture | null,
     macro: MacroSettings,
     macroTime: number,
+    sliceMode: boolean,
+    slice: SliceSettings,
+    sliceTime: number,
     color: ColorSettings,
   ): void {
     const gl = this.gl;
@@ -790,6 +808,15 @@ export class SmooshRenderer {
     gl.uniform1f(this.moshProg.loc.uMacroTheft, macro.theft);
     gl.uniform1f(this.moshProg.loc.uMacroMemory, macro.memory);
     gl.uniform1f(this.moshProg.loc.uMacroTime, macroTime);
+    gl.uniform1i(this.moshProg.loc.uSliceMode, sliceMode ? 1 : 0);
+    gl.uniform1f(this.moshProg.loc.uSliceWidthPx, slice.slitWidth);
+    gl.uniform1f(this.moshProg.loc.uSliceDrift, slice.drift);
+    gl.uniform1f(this.moshProg.loc.uSliceSpeed, slice.scanSpeed);
+    gl.uniform1f(this.moshProg.loc.uSliceTime, sliceTime);
+    gl.uniform1i(
+      this.moshProg.loc.uSliceOrientation,
+      slice.orientation === "vertical" ? 0 : 1,
+    );
     this.setColorUniforms(
       this.moshProg,
       color,

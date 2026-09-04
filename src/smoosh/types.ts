@@ -6,7 +6,8 @@ export type SmooshMode =
   | "buffer"
   | "hold"
   | "chroma"
-  | "macro";
+  | "macro"
+  | "slice";
 
 export type QualityLevel = "performance" | "balanced" | "high";
 
@@ -101,6 +102,22 @@ export const DEFAULT_MACRO: MacroSettings = {
   memory: 0.72,
 };
 
+export type SliceOrientation = "vertical" | "horizontal";
+
+export interface SliceSettings {
+  slitWidth: number;
+  drift: number;
+  scanSpeed: number;
+  orientation: SliceOrientation;
+}
+
+export const DEFAULT_SLICE: SliceSettings = {
+  slitWidth: 18,
+  drift: 0.62,
+  scanSpeed: 0.85,
+  orientation: "vertical",
+};
+
 export const DEFAULT_SYMMETRY: SymmetrySettings = {
   enabled: false,
   axis: 0.5,
@@ -188,6 +205,10 @@ export const MODE_META: Record<SmooshMode, { label: string; hint: string }> = {
   macro: {
     label: "MACROBLOCK THEFT",
     hint: "A steals rectangular chunks from B and its own past. The blocks remember.",
+  },
+  slice: {
+    label: "TIME-SLICE / SLIT-SCAN",
+    hint: "Each strip lives at a different moment. Drag time sideways.",
   },
 };
 
