@@ -74,6 +74,7 @@ import {
   DEFAULT_BIT_PLANE,
   DEFAULT_BINARY_PRINT,
   DEFAULT_COLLISION,
+  DEFAULT_CONTOUR_CURRENT,
   DEFAULT_FLOW_SORT,
   DEFAULT_GRAVITY_WELLS,
   DEFAULT_INFECTION,
@@ -110,6 +111,7 @@ const MODES: SmooshMode[] = [
   "bitsplice",
   "flowsort",
   "gravity",
+  "contour",
 ];
 
 const COLOR_EFFECTS: ColorEffect[] = [
@@ -1419,6 +1421,7 @@ export function SmooshApp() {
           {store.mode === "bitsplice" && <BitPlaneControls />}
           {store.mode === "flowsort" && <FlowSortControls />}
           {store.mode === "gravity" && <GravityWellControls />}
+          {store.mode === "contour" && <ContourControls />}
 
           <ProcessionStrip
             steps={processionSteps}
@@ -3540,4 +3543,49 @@ function shortSourceName(fileName: string | null): string {
   return withoutExtension.length > 30
     ? `${withoutExtension.slice(0, 27)}…`
     : withoutExtension;
+}
+
+function ContourControls() {
+  const store = useSmoosh();
+  const effect = store.contour;
+  return (
+    <section
+      className="contour-controls mode-organ-controls"
+      aria-label="Contour Current controls"
+    >
+      <div className="mode-organ-title">
+        <strong>VASCULAR INK</strong>
+        <button
+          type="button"
+          onClick={() => store.setContour(DEFAULT_CONTOUR_CURRENT)}
+        >
+          SWEET SPOT
+        </button>
+      </div>
+      {(
+        [
+          ["EDGE GRIP", "edgeGrip"],
+          ["RUN", "run"],
+          ["BLEED", "bleed"],
+        ] as const
+      ).map(([label, key]) => (
+        <label className="mode-organ-knob" key={key}>
+          <span>
+            {label} <b>{Math.round(effect[key] * 100)}%</b>
+          </span>
+          <input
+            aria-label={`Contour Current ${label.toLowerCase()}`}
+            type="range"
+            min={0}
+            max={1}
+            step={0.01}
+            value={effect[key]}
+            onChange={(event) =>
+              store.setContour({ [key]: Number(event.target.value) })
+            }
+          />
+        </label>
+      ))}
+    </section>
+  );
 }

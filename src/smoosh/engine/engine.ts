@@ -328,6 +328,7 @@ export class SmooshEngine {
       bitPlane: s.bitPlane,
       flowSort: s.flowSort,
       gravityWells: s.gravityWells,
+      contour: s.contour,
     });
 
     const outputW = 240;

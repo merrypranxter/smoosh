@@ -4,6 +4,7 @@ import type {
   ColorEffect,
   ColorSettings,
   CollisionSettings,
+  ContourSettings,
   FlowSortSettings,
   GravityWellSettings,
   InfectionSettings,
@@ -68,6 +69,7 @@ export interface RenderInputs {
   bitPlane: BitPlaneSettings;
   flowSort: FlowSortSettings;
   gravityWells: GravityWellSettings;
+  contour: ContourSettings;
 }
 
 export interface PrimeInputs {
@@ -290,6 +292,10 @@ export class SmooshRenderer {
           "uWellMass",
           "uWellReach",
           "uWellOrbit",
+          "uContourMode",
+          "uEdgeGrip",
+          "uContourRun",
+          "uContourBleed",
           ...COLOR_UNIFORMS,
         ]),
       };
@@ -746,6 +752,8 @@ export class SmooshRenderer {
       input.flowSort,
       input.mode === "gravity",
       input.gravityWells,
+      input.mode === "contour",
+      input.contour,
       input.color,
     );
 
@@ -785,6 +793,8 @@ export class SmooshRenderer {
         input.flowSort,
         false,
         input.gravityWells,
+        false,
+        input.contour,
         input.color,
       );
       this.mixFeedbacks(input.params.crossBalance);
@@ -887,6 +897,8 @@ export class SmooshRenderer {
     flowSort: FlowSortSettings,
     gravityMode: boolean,
     gravityWells: GravityWellSettings,
+    contourMode: boolean,
+    contour: ContourSettings,
     color: ColorSettings,
   ): void {
     const gl = this.gl;
@@ -969,6 +981,10 @@ export class SmooshRenderer {
     gl.uniform1f(this.moshProg.loc.uWellMass, gravityWells.mass);
     gl.uniform1f(this.moshProg.loc.uWellReach, gravityWells.reach);
     gl.uniform1f(this.moshProg.loc.uWellOrbit, gravityWells.orbit);
+    gl.uniform1i(this.moshProg.loc.uContourMode, contourMode ? 1 : 0);
+    gl.uniform1f(this.moshProg.loc.uEdgeGrip, contour.edgeGrip);
+    gl.uniform1f(this.moshProg.loc.uContourRun, contour.run);
+    gl.uniform1f(this.moshProg.loc.uContourBleed, contour.bleed);
     this.setColorUniforms(
       this.moshProg,
       color,

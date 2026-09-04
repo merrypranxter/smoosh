@@ -15,7 +15,8 @@ export type SmooshMode =
   | "print"
   | "bitsplice"
   | "flowsort"
-  | "gravity";
+  | "gravity"
+  | "contour";
 
 export type QualityLevel = "performance" | "balanced" | "high";
 
@@ -222,6 +223,18 @@ export const DEFAULT_GRAVITY_WELLS: GravityWellSettings = {
   orbit: 0.38,
 };
 
+export interface ContourSettings {
+  edgeGrip: number;
+  run: number;
+  bleed: number;
+}
+
+export const DEFAULT_CONTOUR_CURRENT: ContourSettings = {
+  edgeGrip: 0.62,
+  run: 0.5,
+  bleed: 0.42,
+};
+
 export const DEFAULT_SYMMETRY: SymmetrySettings = {
   enabled: false,
   axis: 0.5,
@@ -345,6 +358,10 @@ export const MODE_META: Record<SmooshMode, { label: string; hint: string }> = {
   gravity: {
     label: "GRAVITY WELLS",
     hint: "B turns motion into gravity. A pinches, orbits, and tears around invisible masses.",
+  },
+  contour: {
+    label: "CONTOUR CURRENT",
+    hint: "B finds A's edges. The wind can only escape along the lines.",
   },
 };
 
