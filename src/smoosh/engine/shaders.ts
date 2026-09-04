@@ -228,6 +228,10 @@ uniform int uBitSpliceMode;
 uniform float uBitBones;
 uniform float uBitGraft;
 uniform float uBitParity;
+uniform int uFlowSortMode;
+uniform float uSortTrigger;
+uniform float uSortLength;
+uniform float uSortPolarity;
 ${FLOW_COMMON}
 ${COLOR_COMMON}
 
@@ -558,6 +562,68 @@ void main() {
       clamp(uRefresh * (1.0 - motionMask * 0.74) + uBleed * 0.18, 0.0, 1.0)
     );
     fragColor = vec4(clamp(spliced, 0.0, 1.0), 1.0);
+    return;
+  }
+
+  if (uFlowSortMode == 1) {
+    float motionEnergy = length(flow);
+    float openAt = mix(0.038, 0.0015, uSortTrigger);
+    float motionGate = smoothstep(openAt, openAt + 0.012, motionEnergy);
+    motionGate = clamp(motionGate + uInjectBoost * 0.42, 0.0, 1.0);
+
+    vec2 direction = vec2(1.0, 0.0);
+    if (motionEnergy > 1.0e-6) direction = flow / motionEnergy;
+    float spanPx = mix(5.0, 118.0, uSortLength);
+    spanPx *= mix(0.28, 1.0, clamp(motionEnergy * 42.0, 0.0, 1.0));
+    spanPx *= 1.0 + uInjectBoost * 1.35;
+    float projectedPixel = dot(gl_FragCoord.xy, direction);
+    float rank = fract(projectedPixel / max(spanPx, 2.0));
+    float targetLuma = mix(1.0 - rank, rank, uSortPolarity);
+
+    vec3 chosen = colorFeed(texture(uSource, vUv).rgb);
+    float chosenDistance = abs(luma(chosen) - targetLuma);
+    for (int sortIndex = 0; sortIndex < 9; sortIndex++) {
+      float along = (float(sortIndex) / 8.0 - 0.5) * spanPx;
+      vec2 initialProbe = clamp(
+        vUv + direction * vec2(uTexel.x, uTexel.y) * along,
+        vec2(0.0),
+        vec2(1.0)
+      );
+      vec2 localFlow = decodeFlow(texture(uFlow, initialProbe).xy) * uGain;
+      float localEnergy = length(localFlow);
+      vec2 localDirection = localEnergy > 1.0e-6
+        ? localFlow / localEnergy
+        : direction;
+      vec2 probeUv = clamp(
+        vUv + localDirection * vec2(uTexel.x, uTexel.y) * along,
+        vec2(0.0),
+        vec2(1.0)
+      );
+      vec3 candidate = colorFeed(texture(uSource, probeUv).rgb);
+      float candidateDistance = abs(luma(candidate) - targetLuma);
+      if (candidateDistance < chosenDistance) {
+        chosen = candidate;
+        chosenDistance = candidateDistance;
+      }
+    }
+
+    vec2 oldUv = clamp(
+      vUv - direction * vec2(uTexel.x, uTexel.y) * spanPx * 0.24,
+      vec2(0.0),
+      vec2(1.0)
+    );
+    vec3 oldSorted = texture(uFeedback, oldUv).rgb * uPersist;
+    float memoryAmount = motionGate * mix(0.12, 0.48, uSortLength);
+    vec3 sortedTrail = mix(chosen, oldSorted, memoryAmount);
+    vec3 source = colorFeedSample(uSource, vUv, uTexel);
+    float sortAmount = motionGate * mix(0.52, 1.0, uSortLength);
+    vec3 color = mix(source, sortedTrail, sortAmount);
+    color = mix(
+      color,
+      source,
+      clamp(uRefresh * (1.0 - motionGate * 0.78) + uBleed * 0.24, 0.0, 1.0)
+    );
+    fragColor = vec4(clamp(color, 0.0, 1.0), 1.0);
     return;
   }
 

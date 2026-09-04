@@ -74,6 +74,7 @@ import {
   DEFAULT_BIT_PLANE,
   DEFAULT_BINARY_PRINT,
   DEFAULT_COLLISION,
+  DEFAULT_FLOW_SORT,
   DEFAULT_INFECTION,
   DEFAULT_LABYRINTH,
   DEFAULT_MACRO,
@@ -106,6 +107,7 @@ const MODES: SmooshMode[] = [
   "vortex",
   "print",
   "bitsplice",
+  "flowsort",
 ];
 
 const COLOR_EFFECTS: ColorEffect[] = [
@@ -1413,6 +1415,7 @@ export function SmooshApp() {
           {store.mode === "vortex" && <CurlVortexControls />}
           {store.mode === "print" && <BinaryPrintControls />}
           {store.mode === "bitsplice" && <BitPlaneControls />}
+          {store.mode === "flowsort" && <FlowSortControls />}
 
           <ProcessionStrip
             steps={processionSteps}
@@ -3049,6 +3052,51 @@ function BitPlaneControls() {
             value={effect[key]}
             onChange={(event) =>
               store.setBitPlane({ [key]: Number(event.target.value) })
+            }
+          />
+        </label>
+      ))}
+    </section>
+  );
+}
+
+function FlowSortControls() {
+  const store = useSmoosh();
+  const effect = store.flowSort;
+  return (
+    <section
+      className="flow-sort-controls mode-organ-controls"
+      aria-label="Flow-Sort Advection controls"
+    >
+      <div className="mode-organ-title">
+        <strong>WET COMB</strong>
+        <button
+          type="button"
+          onClick={() => store.setFlowSort(DEFAULT_FLOW_SORT)}
+        >
+          SWEET SPOT
+        </button>
+      </div>
+      {(
+        [
+          ["TRIGGER", "trigger"],
+          ["LENGTH", "length"],
+          ["POLARITY", "polarity"],
+        ] as const
+      ).map(([label, key]) => (
+        <label className="mode-organ-knob" key={key}>
+          <span>
+            {label} <b>{Math.round(effect[key] * 100)}%</b>
+          </span>
+          <input
+            aria-label={`Flow-Sort Advection ${label.toLowerCase()}`}
+            type="range"
+            min={0}
+            max={1}
+            step={0.01}
+            value={effect[key]}
+            onChange={(event) =>
+              store.setFlowSort({ [key]: Number(event.target.value) })
             }
           />
         </label>

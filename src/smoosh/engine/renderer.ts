@@ -4,6 +4,7 @@ import type {
   ColorEffect,
   ColorSettings,
   CollisionSettings,
+  FlowSortSettings,
   InfectionSettings,
   LabyrinthSettings,
   EngineParams,
@@ -64,6 +65,7 @@ export interface RenderInputs {
   vortex: VortexSettings;
   binaryPrint: BinaryPrintSettings;
   bitPlane: BitPlaneSettings;
+  flowSort: FlowSortSettings;
 }
 
 export interface PrimeInputs {
@@ -278,6 +280,10 @@ export class SmooshRenderer {
           "uBitBones",
           "uBitGraft",
           "uBitParity",
+          "uFlowSortMode",
+          "uSortTrigger",
+          "uSortLength",
+          "uSortPolarity",
           ...COLOR_UNIFORMS,
         ]),
       };
@@ -730,6 +736,8 @@ export class SmooshRenderer {
       input.binaryPrint,
       input.mode === "bitsplice",
       input.bitPlane,
+      input.mode === "flowsort",
+      input.flowSort,
       input.color,
     );
 
@@ -765,6 +773,8 @@ export class SmooshRenderer {
         input.binaryPrint,
         false,
         input.bitPlane,
+        false,
+        input.flowSort,
         input.color,
       );
       this.mixFeedbacks(input.params.crossBalance);
@@ -863,6 +873,8 @@ export class SmooshRenderer {
     binaryPrint: BinaryPrintSettings,
     bitSpliceMode: boolean,
     bitPlane: BitPlaneSettings,
+    flowSortMode: boolean,
+    flowSort: FlowSortSettings,
     color: ColorSettings,
   ): void {
     const gl = this.gl;
@@ -937,6 +949,10 @@ export class SmooshRenderer {
     gl.uniform1f(this.moshProg.loc.uBitBones, bitPlane.bones);
     gl.uniform1f(this.moshProg.loc.uBitGraft, bitPlane.graft);
     gl.uniform1f(this.moshProg.loc.uBitParity, bitPlane.parity);
+    gl.uniform1i(this.moshProg.loc.uFlowSortMode, flowSortMode ? 1 : 0);
+    gl.uniform1f(this.moshProg.loc.uSortTrigger, flowSort.trigger);
+    gl.uniform1f(this.moshProg.loc.uSortLength, flowSort.length);
+    gl.uniform1f(this.moshProg.loc.uSortPolarity, flowSort.polarity);
     this.setColorUniforms(
       this.moshProg,
       color,

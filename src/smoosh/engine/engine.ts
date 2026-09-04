@@ -326,6 +326,7 @@ export class SmooshEngine {
       vortex: s.vortex,
       binaryPrint: s.binaryPrint,
       bitPlane: s.bitPlane,
+      flowSort: s.flowSort,
     });
 
     const outputW = 240;

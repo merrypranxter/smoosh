@@ -18,7 +18,7 @@ import {
 } from "../src/smoosh/procession.ts";
 import { MOSH_FRAG } from "../src/smoosh/engine/shaders.ts";
 
-test("the mode oracle uses exactly fifteen contracts", () => {
+test("the mode oracle uses exactly sixteen contracts", () => {
   assert.deepEqual(
     Object.fromEntries(
       Object.entries(MODE_META).map(([mode, meta]) => [mode, meta.hint]),
@@ -47,9 +47,11 @@ test("the mode oracle uses exactly fifteen contracts", () => {
         "A becomes ink. B makes the printing matrix crawl out of registration.",
       bitsplice:
         "A keeps its bones. B replaces the middle bits. Motion makes the low bits lie.",
+      flowsort:
+        "B combs A along its motion. Bright and dark pixels fight for the front.",
     },
   );
-  assert.equal(Object.keys(MODE_META).length, 15);
+  assert.equal(Object.keys(MODE_META).length, 16);
 });
 
 test("moving transfer and cross route A pixels against B motion", () => {
@@ -109,6 +111,7 @@ test("source requirements match the one-source fallbacks", () => {
   assert.equal(needsSourceForMode("vortex", false, true, false), false);
   assert.equal(needsSourceForMode("print", true, false, false), false);
   assert.equal(needsSourceForMode("bitsplice", true, false, false), false);
+  assert.equal(needsSourceForMode("flowsort", true, false, false), false);
   assert.equal(needsSourceForMode("hold", false, false, true), true);
 });
 

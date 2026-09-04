@@ -13,7 +13,8 @@ export type SmooshMode =
   | "labyrinth"
   | "vortex"
   | "print"
-  | "bitsplice";
+  | "bitsplice"
+  | "flowsort";
 
 export type QualityLevel = "performance" | "balanced" | "high";
 
@@ -196,6 +197,18 @@ export const DEFAULT_BIT_PLANE: BitPlaneSettings = {
   parity: 0.64,
 };
 
+export interface FlowSortSettings {
+  trigger: number;
+  length: number;
+  polarity: number;
+}
+
+export const DEFAULT_FLOW_SORT: FlowSortSettings = {
+  trigger: 0.58,
+  length: 0.72,
+  polarity: 0.62,
+};
+
 export const DEFAULT_SYMMETRY: SymmetrySettings = {
   enabled: false,
   axis: 0.5,
@@ -311,6 +324,10 @@ export const MODE_META: Record<SmooshMode, { label: string; hint: string }> = {
   bitsplice: {
     label: "BIT-PLANE CROSS-SPLICE",
     hint: "A keeps its bones. B replaces the middle bits. Motion makes the low bits lie.",
+  },
+  flowsort: {
+    label: "FLOW-SORT ADVECTION",
+    hint: "B combs A along its motion. Bright and dark pixels fight for the front.",
   },
 };
 

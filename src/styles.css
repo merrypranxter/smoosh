@@ -1373,6 +1373,9 @@ body {
 .bit-splice-controls {
   --organ-color: var(--color-cyan);
 }
+.flow-sort-controls {
+  --organ-color: var(--color-yellow);
+}
 
 .mode-organ-title {
   display: grid;

@@ -5,6 +5,7 @@ import {
   DEFAULT_BINARY_PRINT,
   DEFAULT_COLOR,
   DEFAULT_COLLISION,
+  DEFAULT_FLOW_SORT,
   DEFAULT_INFECTION,
   DEFAULT_LABYRINTH,
   DEFAULT_MACRO,
@@ -19,6 +20,7 @@ import {
   type BinaryPrintSettings,
   type ColorSettings,
   type CollisionSettings,
+  type FlowSortSettings,
   type InfectionSettings,
   type LabyrinthSettings,
   type EngineParams,
@@ -72,6 +74,7 @@ export interface SmooshStore {
   vortex: VortexSettings;
   binaryPrint: BinaryPrintSettings;
   bitPlane: BitPlaneSettings;
+  flowSort: FlowSortSettings;
   setParam: <K extends keyof EngineParams>(
     key: K,
     value: EngineParams[K],
@@ -103,6 +106,7 @@ export interface SmooshStore {
   setVortex: (patch: Partial<VortexSettings>) => void;
   setBinaryPrint: (patch: Partial<BinaryPrintSettings>) => void;
   setBitPlane: (patch: Partial<BitPlaneSettings>) => void;
+  setFlowSort: (patch: Partial<FlowSortSettings>) => void;
   resetParams: () => void;
   randomizeParams: () => void;
 }
@@ -170,6 +174,7 @@ export const useSmoosh = create<SmooshStore>((set, get) => ({
   vortex: { ...DEFAULT_VORTEX },
   binaryPrint: { ...DEFAULT_BINARY_PRINT },
   bitPlane: { ...DEFAULT_BIT_PLANE },
+  flowSort: { ...DEFAULT_FLOW_SORT },
   setParam: (key, value) =>
     set((s) => ({ params: { ...s.params, [key]: value } })),
   setParams: (p) => set({ params: { ...DEFAULT_PARAMS, ...p } }),
@@ -361,6 +366,22 @@ export const useSmoosh = create<SmooshStore>((set, get) => ({
         bones: Math.min(1, Math.max(0, patch.bones ?? state.bitPlane.bones)),
         graft: Math.min(1, Math.max(0, patch.graft ?? state.bitPlane.graft)),
         parity: Math.min(1, Math.max(0, patch.parity ?? state.bitPlane.parity)),
+      },
+    })),
+  setFlowSort: (patch) =>
+    set((state) => ({
+      flowSort: {
+        ...state.flowSort,
+        ...patch,
+        trigger: Math.min(
+          1,
+          Math.max(0, patch.trigger ?? state.flowSort.trigger),
+        ),
+        length: Math.min(1, Math.max(0, patch.length ?? state.flowSort.length)),
+        polarity: Math.min(
+          1,
+          Math.max(0, patch.polarity ?? state.flowSort.polarity),
+        ),
       },
     })),
   resetParams: () => set({ params: { ...DEFAULT_PARAMS } }),
