@@ -9,7 +9,9 @@ export type SmooshMode =
   | "macro"
   | "slice"
   | "collision"
-  | "infection";
+  | "infection"
+  | "labyrinth"
+  | "vortex";
 
 export type QualityLevel = "performance" | "balanced" | "high";
 
@@ -144,6 +146,30 @@ export const DEFAULT_INFECTION: InfectionSettings = {
   bite: 0.82,
 };
 
+export interface LabyrinthSettings {
+  depth: number;
+  twist: number;
+  gate: number;
+}
+
+export const DEFAULT_LABYRINTH: LabyrinthSettings = {
+  depth: 0.58,
+  twist: 0.42,
+  gate: 0.5,
+};
+
+export interface VortexSettings {
+  swirl: number;
+  radius: number;
+  turbulence: number;
+}
+
+export const DEFAULT_VORTEX: VortexSettings = {
+  swirl: 0.76,
+  radius: 0.48,
+  turbulence: 0.36,
+};
+
 export const DEFAULT_SYMMETRY: SymmetrySettings = {
   enabled: false,
   axis: 0.5,
@@ -243,6 +269,14 @@ export const MODE_META: Record<SmooshMode, { label: string; hint: string }> = {
   infection: {
     label: "REGIONAL INFECTION",
     hint: "Stillness heals. Motion opens wounds where the old frame keeps breeding.",
+  },
+  labyrinth: {
+    label: "FEEDBACK LABYRINTH",
+    hint: "Motion closes the gate. The trapped output folds inward and echoes itself.",
+  },
+  vortex: {
+    label: "CURL VORTEX",
+    hint: "Straight motion curls into local whirlpools. Every gesture leaves weather behind.",
   },
 };
 

@@ -42,6 +42,7 @@ export class SmooshEngine {
   private lastBufferPattern: BufferPattern | null = null;
   private macroClock = 0;
   private sliceClock = 0;
+  private labyrinthClock = 0;
 
   constructor(
     hub: MediaHub,
@@ -250,6 +251,7 @@ export class SmooshEngine {
     }
     if (s.mode === "macro") this.macroClock += dt;
     if (s.mode === "slice") this.sliceClock += dt;
+    if (s.mode === "labyrinth") this.labyrinthClock += dt;
 
     const route = routeModeSources(s.mode, hasA, hasB);
     let pixels = this.hub.drawable(route.pixels);
@@ -319,6 +321,9 @@ export class SmooshEngine {
       collision: s.collision,
       collisionSolo: route.pixels === route.motion,
       infection: s.infection,
+      labyrinth: s.labyrinth,
+      labyrinthTime: this.labyrinthClock,
+      vortex: s.vortex,
     });
 
     const outputW = 240;

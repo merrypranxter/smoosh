@@ -3,12 +3,14 @@ import type {
   ColorSettings,
   CollisionSettings,
   InfectionSettings,
+  LabyrinthSettings,
   EngineParams,
   MacroSettings,
   QualityLevel,
   SliceSettings,
   SmooshMode,
   SymmetrySettings,
+  VortexSettings,
 } from "@/smoosh/types";
 import { qualityLongEdge } from "@/smoosh/types";
 import {
@@ -55,6 +57,9 @@ export interface RenderInputs {
   collision: CollisionSettings;
   collisionSolo: boolean;
   infection: InfectionSettings;
+  labyrinth: LabyrinthSettings;
+  labyrinthTime: number;
+  vortex: VortexSettings;
 }
 
 export interface PrimeInputs {
@@ -252,6 +257,15 @@ export class SmooshRenderer {
           "uInfectionTrigger",
           "uInfectionSpread",
           "uInfectionBite",
+          "uLabyrinthMode",
+          "uLabyrinthDepth",
+          "uLabyrinthTwist",
+          "uLabyrinthGate",
+          "uLabyrinthTime",
+          "uVortexMode",
+          "uVortexSwirl",
+          "uVortexRadius",
+          "uVortexTurbulence",
           ...COLOR_UNIFORMS,
         ]),
       };
@@ -693,6 +707,11 @@ export class SmooshRenderer {
       input.collisionSolo,
       input.mode === "infection",
       input.infection,
+      input.mode === "labyrinth",
+      input.labyrinth,
+      input.labyrinthTime,
+      input.mode === "vortex",
+      input.vortex,
       input.color,
     );
 
@@ -719,6 +738,11 @@ export class SmooshRenderer {
         false,
         false,
         input.infection,
+        false,
+        input.labyrinth,
+        input.labyrinthTime,
+        false,
+        input.vortex,
         input.color,
       );
       this.mixFeedbacks(input.params.crossBalance);
@@ -808,6 +832,11 @@ export class SmooshRenderer {
     collisionSolo: boolean,
     infectionMode: boolean,
     infection: InfectionSettings,
+    labyrinthMode: boolean,
+    labyrinth: LabyrinthSettings,
+    labyrinthTime: number,
+    vortexMode: boolean,
+    vortex: VortexSettings,
     color: ColorSettings,
   ): void {
     const gl = this.gl;
@@ -865,6 +894,15 @@ export class SmooshRenderer {
     gl.uniform1f(this.moshProg.loc.uInfectionTrigger, infection.trigger);
     gl.uniform1f(this.moshProg.loc.uInfectionSpread, infection.spread);
     gl.uniform1f(this.moshProg.loc.uInfectionBite, infection.bite);
+    gl.uniform1i(this.moshProg.loc.uLabyrinthMode, labyrinthMode ? 1 : 0);
+    gl.uniform1f(this.moshProg.loc.uLabyrinthDepth, labyrinth.depth);
+    gl.uniform1f(this.moshProg.loc.uLabyrinthTwist, labyrinth.twist);
+    gl.uniform1f(this.moshProg.loc.uLabyrinthGate, labyrinth.gate);
+    gl.uniform1f(this.moshProg.loc.uLabyrinthTime, labyrinthTime);
+    gl.uniform1i(this.moshProg.loc.uVortexMode, vortexMode ? 1 : 0);
+    gl.uniform1f(this.moshProg.loc.uVortexSwirl, vortex.swirl);
+    gl.uniform1f(this.moshProg.loc.uVortexRadius, vortex.radius);
+    gl.uniform1f(this.moshProg.loc.uVortexTurbulence, vortex.turbulence);
     this.setColorUniforms(
       this.moshProg,
       color,

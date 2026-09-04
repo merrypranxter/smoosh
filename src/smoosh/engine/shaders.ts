@@ -211,6 +211,15 @@ uniform int uInfectionMode;
 uniform float uInfectionTrigger;
 uniform float uInfectionSpread;
 uniform float uInfectionBite;
+uniform int uLabyrinthMode;
+uniform float uLabyrinthDepth;
+uniform float uLabyrinthTwist;
+uniform float uLabyrinthGate;
+uniform float uLabyrinthTime;
+uniform int uVortexMode;
+uniform float uVortexSwirl;
+uniform float uVortexRadius;
+uniform float uVortexTurbulence;
 ${FLOW_COMMON}
 ${COLOR_COMMON}
 
@@ -368,6 +377,57 @@ void main() {
     wound = clamp(wound + wound * (macroHash(woundCell + 13.0) - 0.5) * 0.24, 0.0, 1.0);
     vec3 color = mix(src, infected, wound * uInfectionBite);
     color = mix(color, src, uBleed * (1.0 - wound));
+    fragColor = vec4(clamp(color, 0.0, 1.0), 1.0);
+    return;
+  }
+
+  if (uLabyrinthMode == 1) {
+    float energy = length(flow);
+    float closeAt = mix(0.001, 0.032, uLabyrinthGate);
+    float sealed = smoothstep(closeAt, closeAt + 0.014, energy);
+    vec2 centered = vUv - 0.5;
+    float heartbeat = 0.5 + 0.5 * sin(uLabyrinthTime * 0.72 + length(centered) * 28.0);
+    float twist = mix(0.001, 0.035, uLabyrinthTwist) * mix(0.45, 1.0, sealed);
+    float zoom = mix(1.002, 1.035, uLabyrinthDepth);
+    vec2 echoUvA = clamp(rotate(centered * zoom, twist) + 0.5 - flow * 0.62, vec2(0.0), vec2(1.0));
+    vec2 echoUvB = clamp(rotate(centered * (zoom + 0.018 * uLabyrinthDepth), -twist * 0.72) + 0.5 - flow * 1.18, vec2(0.0), vec2(1.0));
+    vec2 echoUvC = clamp(rotate(centered * (zoom + 0.037 * uLabyrinthDepth), twist * 1.45) + 0.5 - flow * 1.72, vec2(0.0), vec2(1.0));
+    vec3 echoA = texture(uFeedback, echoUvA).rgb;
+    vec3 echoB = texture(uFeedback, echoUvB).rgb;
+    vec3 echoC = texture(uFeedback, echoUvC).rgb;
+    vec3 trapped = mix(echoA, echoB, uLabyrinthDepth * (0.22 + heartbeat * 0.18));
+    trapped = mix(trapped, echoC, uLabyrinthDepth * 0.2) * uPersist;
+    vec3 src = colorFeedSample(uSource, vUv, uTexel);
+    float injection = (1.0 - sealed) * (0.14 + uRefresh * 0.7) + uInjectBoost * 0.14;
+    vec3 color = mix(trapped, src, clamp(injection, 0.0, 1.0));
+    color = mix(color, src, uBleed * (1.0 - sealed * 0.85));
+    fragColor = vec4(clamp(color, 0.0, 1.0), 1.0);
+    return;
+  }
+
+  if (uVortexMode == 1) {
+    vec2 probe = max(uTexel * mix(4.0, 18.0, uVortexRadius), uTexel);
+    vec2 flowL = decodeFlow(texture(uFlow, clamp(vUv - vec2(probe.x, 0.0), vec2(0.0), vec2(1.0))).xy) * uGain;
+    vec2 flowR = decodeFlow(texture(uFlow, clamp(vUv + vec2(probe.x, 0.0), vec2(0.0), vec2(1.0))).xy) * uGain;
+    vec2 flowD = decodeFlow(texture(uFlow, clamp(vUv - vec2(0.0, probe.y), vec2(0.0), vec2(1.0))).xy) * uGain;
+    vec2 flowU = decodeFlow(texture(uFlow, clamp(vUv + vec2(0.0, probe.y), vec2(0.0), vec2(1.0))).xy) * uGain;
+    float curl = (flowR.y - flowL.y) - (flowU.x - flowD.x);
+    vec2 cellSize = max(uTexel * mix(34.0, 112.0, uVortexRadius), uTexel * 12.0);
+    vec2 cell = floor(vUv / cellSize);
+    vec2 center = (cell + 0.5) * cellSize;
+    vec2 local = vUv - center;
+    float grit = macroHash(cell + floor(length(flow) * 850.0)) - 0.5;
+    float angle = curl * mix(85.0, 520.0, uVortexSwirl);
+    angle += grit * length(flow) * uVortexTurbulence * 72.0;
+    vec2 vortexUv = center + rotate(local, angle);
+    vec2 tangent = vec2(-flow.y, flow.x);
+    vortexUv -= flow * mix(0.18, 0.72, uVortexTurbulence) + tangent * curl * uVortexSwirl * 2.4;
+    vec3 swirled = texture(uFeedback, clamp(vortexUv, vec2(0.0), vec2(1.0))).rgb * uPersist;
+    vec3 src = colorFeedSample(uSource, vUv, uTexel);
+    float active = smoothstep(0.001, 0.027, length(flow) + abs(curl) * 2.0);
+    float vortexMix = active * mix(0.4, 1.0, uVortexSwirl);
+    vec3 color = mix(src, swirled, vortexMix);
+    color = mix(color, src, clamp(uRefresh * (1.0 - active * 0.78) + uInjectBoost * 0.16 + uBleed * 0.35, 0.0, 1.0));
     fragColor = vec4(clamp(color, 0.0, 1.0), 1.0);
     return;
   }

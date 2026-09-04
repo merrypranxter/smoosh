@@ -4,9 +4,11 @@ import {
   DEFAULT_COLOR,
   DEFAULT_COLLISION,
   DEFAULT_INFECTION,
+  DEFAULT_LABYRINTH,
   DEFAULT_MACRO,
   DEFAULT_SLICE,
   DEFAULT_SYMMETRY,
+  DEFAULT_VORTEX,
   SAFE_RANDOM_RANGES,
   type AspectPreset,
   type AudioRoute,
@@ -14,6 +16,7 @@ import {
   type ColorSettings,
   type CollisionSettings,
   type InfectionSettings,
+  type LabyrinthSettings,
   type EngineParams,
   type MacroSettings,
   type SliceSettings,
@@ -21,6 +24,7 @@ import {
   type SlotState,
   type SmooshMode,
   type SymmetrySettings,
+  type VortexSettings,
 } from "@/smoosh/types";
 import { isMobileClient } from "@/smoosh/types";
 
@@ -60,6 +64,8 @@ export interface SmooshStore {
   slice: SliceSettings;
   collision: CollisionSettings;
   infection: InfectionSettings;
+  labyrinth: LabyrinthSettings;
+  vortex: VortexSettings;
   setParam: <K extends keyof EngineParams>(
     key: K,
     value: EngineParams[K],
@@ -87,6 +93,8 @@ export interface SmooshStore {
   setSlice: (patch: Partial<SliceSettings>) => void;
   setCollision: (patch: Partial<CollisionSettings>) => void;
   setInfection: (patch: Partial<InfectionSettings>) => void;
+  setLabyrinth: (patch: Partial<LabyrinthSettings>) => void;
+  setVortex: (patch: Partial<VortexSettings>) => void;
   resetParams: () => void;
   randomizeParams: () => void;
 }
@@ -150,6 +158,8 @@ export const useSmoosh = create<SmooshStore>((set, get) => ({
   slice: { ...DEFAULT_SLICE },
   collision: { ...DEFAULT_COLLISION },
   infection: { ...DEFAULT_INFECTION },
+  labyrinth: { ...DEFAULT_LABYRINTH },
+  vortex: { ...DEFAULT_VORTEX },
   setParam: (key, value) =>
     set((s) => ({ params: { ...s.params, [key]: value } })),
   setParams: (p) => set({ params: { ...DEFAULT_PARAMS, ...p } }),
@@ -292,6 +302,26 @@ export const useSmoosh = create<SmooshStore>((set, get) => ({
           Math.max(0, patch.spread ?? state.infection.spread),
         ),
         bite: Math.min(1, Math.max(0, patch.bite ?? state.infection.bite)),
+      },
+    })),
+  setLabyrinth: (patch) =>
+    set((state) => ({
+      labyrinth: {
+        ...state.labyrinth,
+        ...patch,
+        depth: Math.min(1, Math.max(0, patch.depth ?? state.labyrinth.depth)),
+        twist: Math.min(1, Math.max(0, patch.twist ?? state.labyrinth.twist)),
+        gate: Math.min(1, Math.max(0, patch.gate ?? state.labyrinth.gate)),
+      },
+    })),
+  setVortex: (patch) =>
+    set((state) => ({
+      vortex: {
+        ...state.vortex,
+        ...patch,
+        swirl: Math.min(1, Math.max(0, patch.swirl ?? state.vortex.swirl)),
+        radius: Math.min(1, Math.max(0, patch.radius ?? state.vortex.radius)),
+        turbulence: Math.min(1, Math.max(0, patch.turbulence ?? state.vortex.turbulence)),
       },
     })),
   resetParams: () => set({ params: { ...DEFAULT_PARAMS } }),

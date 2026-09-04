@@ -73,8 +73,10 @@ import {
   COLOR_EFFECT_META,
   DEFAULT_COLLISION,
   DEFAULT_INFECTION,
+  DEFAULT_LABYRINTH,
   DEFAULT_MACRO,
   DEFAULT_SLICE,
+  DEFAULT_VORTEX,
   MODE_META,
   aspectValue,
   type AspectPreset,
@@ -98,6 +100,8 @@ const MODES: SmooshMode[] = [
   "slice",
   "collision",
   "infection",
+  "labyrinth",
+  "vortex",
 ];
 
 const COLOR_EFFECTS: ColorEffect[] = [
@@ -1401,6 +1405,8 @@ export function SmooshApp() {
           {store.mode === "slice" && <TimeSliceControls />}
           {store.mode === "collision" && <MotionCollisionControls />}
           {store.mode === "infection" && <RegionalInfectionControls />}
+          {store.mode === "labyrinth" && <FeedbackLabyrinthControls />}
+          {store.mode === "vortex" && <CurlVortexControls />}
 
           <ProcessionStrip
             steps={processionSteps}
@@ -2864,6 +2870,72 @@ function RegionalInfectionControls() {
           }
         />
       </label>
+    </section>
+  );
+}
+
+function FeedbackLabyrinthControls() {
+  const store = useSmoosh();
+  const effect = store.labyrinth;
+  return (
+    <section className="labyrinth-controls mode-organ-controls" aria-label="Feedback Labyrinth controls">
+      <div className="mode-organ-title">
+        <strong>LOOP CHAMBER</strong>
+        <button type="button" onClick={() => store.setLabyrinth(DEFAULT_LABYRINTH)}>
+          SWEET SPOT
+        </button>
+      </div>
+      {([
+        ["DEPTH", "depth"],
+        ["TWIST", "twist"],
+        ["GATE", "gate"],
+      ] as const).map(([label, key]) => (
+        <label className="mode-organ-knob" key={key}>
+          <span>{label} <b>{Math.round(effect[key] * 100)}%</b></span>
+          <input
+            aria-label={`Feedback Labyrinth ${label.toLowerCase()}`}
+            type="range"
+            min={0}
+            max={1}
+            step={0.01}
+            value={effect[key]}
+            onChange={(event) => store.setLabyrinth({ [key]: Number(event.target.value) })}
+          />
+        </label>
+      ))}
+    </section>
+  );
+}
+
+function CurlVortexControls() {
+  const store = useSmoosh();
+  const effect = store.vortex;
+  return (
+    <section className="vortex-controls mode-organ-controls" aria-label="Curl Vortex controls">
+      <div className="mode-organ-title">
+        <strong>WEATHER ENGINE</strong>
+        <button type="button" onClick={() => store.setVortex(DEFAULT_VORTEX)}>
+          SWEET SPOT
+        </button>
+      </div>
+      {([
+        ["SWIRL", "swirl"],
+        ["RADIUS", "radius"],
+        ["TURBULENCE", "turbulence"],
+      ] as const).map(([label, key]) => (
+        <label className="mode-organ-knob" key={key}>
+          <span>{label} <b>{Math.round(effect[key] * 100)}%</b></span>
+          <input
+            aria-label={`Curl Vortex ${label.toLowerCase()}`}
+            type="range"
+            min={0}
+            max={1}
+            step={0.01}
+            value={effect[key]}
+            onChange={(event) => store.setVortex({ [key]: Number(event.target.value) })}
+          />
+        </label>
+      ))}
     </section>
   );
 }
