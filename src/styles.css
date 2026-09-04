@@ -763,6 +763,139 @@ body {
   color: var(--color-pink);
 }
 
+.audio-mosh {
+  width: min(100%, 760px);
+  margin: 0 auto;
+  padding: 7px 8px;
+  display: grid;
+  gap: 6px;
+  border: 1px solid color-mix(in oklab, var(--color-orange) 62%, transparent);
+  border-radius: 13px;
+  background:
+    linear-gradient(
+      115deg,
+      color-mix(in oklab, var(--color-pink) 7%, transparent),
+      color-mix(in oklab, var(--color-orange) 8%, transparent)
+    ),
+    var(--color-ink-2);
+  box-shadow: inset 0 0 18px
+    color-mix(in oklab, var(--color-orange) 5%, transparent);
+}
+
+.audio-mosh-head,
+.audio-mosh-head > div,
+.audio-mosh-knobs label,
+.audio-mosh-knobs label > span {
+  min-width: 0;
+}
+
+.audio-mosh-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.audio-mosh-head > div {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.audio-mosh-head strong {
+  flex: 0 0 auto;
+  color: var(--color-orange);
+  font-family: var(--font-display);
+  font-size: 0.84rem;
+  letter-spacing: 0.08em;
+}
+
+.audio-mosh-head span {
+  overflow: hidden;
+  color: var(--color-fog);
+  font-size: 0.5rem;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.audio-mosh-head button,
+.audio-route-rail button {
+  flex: 0 0 auto;
+  min-height: 29px;
+  padding: 0 9px;
+  border: 1px solid color-mix(in oklab, var(--color-chrome) 28%, transparent);
+  border-radius: 8px;
+  background: var(--color-ink-3);
+  color: var(--color-fog);
+  font-size: 0.54rem;
+  font-weight: 850;
+  letter-spacing: 0.045em;
+  white-space: nowrap;
+}
+
+.audio-mosh-head button {
+  border-color: color-mix(in oklab, var(--color-yellow) 62%, transparent);
+  color: var(--color-yellow);
+}
+
+.audio-route-rail {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: none;
+}
+
+.audio-route-rail::-webkit-scrollbar {
+  display: none;
+}
+
+.audio-route-rail button.on {
+  border-color: var(--color-orange);
+  color: var(--color-orange);
+  box-shadow: inset 0 0 10px
+    color-mix(in oklab, var(--color-orange) 13%, transparent);
+}
+
+.audio-route-rail small {
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: var(--color-cyan);
+  font-size: 0.49rem;
+  font-weight: 800;
+  letter-spacing: 0.055em;
+  white-space: nowrap;
+}
+
+.audio-mosh-knobs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.audio-mosh-knobs label > span {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+  color: var(--color-fog);
+  font-size: 0.52rem;
+  font-weight: 800;
+  letter-spacing: 0.035em;
+}
+
+.audio-mosh-knobs b {
+  color: var(--color-orange);
+  font-family: var(--font-mono);
+}
+
+.audio-mosh-knobs input {
+  width: 100%;
+  min-width: 0;
+  accent-color: var(--color-orange);
+}
+
 .rec-chip,
 .mode-chip {
   position: absolute;
@@ -1780,6 +1913,15 @@ body {
     max-height: min(43dvh, calc(100dvh - 270px), 500px);
   }
 
+  .audio-mosh-open .stage {
+    max-height: min(43dvh, calc(100dvh - 270px), 500px);
+  }
+
+  .audio-mosh-open.touch-jump-open .stage,
+  .audio-mosh-open.color-feed-open .stage {
+    max-height: min(37dvh, calc(100dvh - 330px), 440px);
+  }
+
   .stage-actions {
     min-height: 32px;
   }
@@ -1813,6 +1955,25 @@ body {
 
   .touch-jump-controls {
     width: 100%;
+  }
+
+  .audio-mosh {
+    width: 100%;
+  }
+
+  .audio-mosh-head > div {
+    display: grid;
+    gap: 1px;
+  }
+
+  .audio-mosh-knobs {
+    gap: 5px;
+  }
+
+  .audio-mosh-knobs label > span {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0;
   }
 
   .compare-handle::after {

@@ -56,9 +56,11 @@ import {
   type ProcessionStep,
 } from "@/smoosh/procession";
 import {
+  AUDIO_MOSH_SWEET_SPOT,
   downloadBlob,
   OutputRecorder,
   shareBlob,
+  type AudioMoshSettings,
 } from "@/smoosh/record/recorder";
 import {
   deletePreset,
@@ -151,6 +153,9 @@ export function SmooshApp() {
   const [touchJump, setTouchJump] = useState(false);
   const [touchJumpTarget, setTouchJumpTarget] = useState<TouchJumpTarget>("a");
   const [outputLooping, setOutputLooping] = useState(false);
+  const [audioMosh, setAudioMosh] = useState<AudioMoshSettings>({
+    ...AUDIO_MOSH_SWEET_SPOT,
+  });
   const [processionSteps, setProcessionSteps] =
     useState<ProcessionStep[]>(defaultProcession);
   const [processionLoop, setProcessionLoop] = useState(false);
@@ -289,6 +294,10 @@ export function SmooshApp() {
   }, []);
 
   useEffect(() => {
+    recorderRef.current?.setRoute(store.audio);
+  }, [store.audio]);
+
+  useEffect(() => {
     const hub = hubRef.current;
     if (!hub) return;
     const playing = store.playing;
@@ -344,6 +353,54 @@ export function SmooshApp() {
 
   const aspect = aspectValue(store.aspect, store.sourceAspect);
 
+  async function bindCurrentAudio(): Promise<void> {
+    const hub = hubRef.current;
+    const rec = recorderRef.current;
+    if (!hub || !rec) return;
+    await rec.ensureAudio(
+      hub.a.kind === "video" || hub.a.kind === "camera" ? hub.a.video : null,
+      hub.b.kind === "video" || hub.b.kind === "camera" ? hub.b.video : null,
+      null,
+    );
+    rec.setRoute(useSmoosh.getState().audio);
+    rec.setMosh(audioMosh);
+  }
+
+  async function toggleAudioMosh(): Promise<void> {
+    const next = { ...audioMosh, enabled: !audioMosh.enabled };
+    if (next.enabled) {
+      useSmoosh.getState().setAudio("mix");
+      setAudioMosh(next);
+      await bindCurrentAudio();
+      recorderRef.current?.setRoute("mix");
+      recorderRef.current?.setMosh(next);
+      playSources(["a", "b"], {
+        forcePrime: !(engineRef.current?.primed ?? false),
+        inject: false,
+      });
+      useSmoosh
+        .getState()
+        .setToast("AUDIO MOSH LIVE — jumps now chew the soundtrack too.");
+      return;
+    }
+    setAudioMosh(next);
+    recorderRef.current?.setMosh(next);
+    useSmoosh
+      .getState()
+      .setToast("AUDIO MOSH CLEAN — source routing stays live.");
+  }
+
+  function patchAudioMosh(patch: Partial<AudioMoshSettings>): void {
+    const next = { ...audioMosh, ...patch };
+    setAudioMosh(next);
+    recorderRef.current?.setMosh(next);
+  }
+
+  function selectAudioRoute(route: AudioRoute): void {
+    useSmoosh.getState().setAudio(route);
+    recorderRef.current?.setRoute(route);
+  }
+
   async function onFile(id: "a" | "b", file: File | undefined) {
     if (!file) return;
     const hub = hubRef.current;
@@ -362,6 +419,7 @@ export function SmooshApp() {
       if (id === "a") useSmoosh.getState().setSourceAspect(hub.aspect("a"));
       setThumbs((current) => ({ ...current, [id]: hub.thumbnail(id) }));
       useSmoosh.getState().setPlaying(true);
+      if (audioMosh.enabled) await bindCurrentAudio();
       void ignite();
     } catch (err) {
       useSmoosh.getState().patchSlot(id, {
@@ -537,6 +595,7 @@ export function SmooshApp() {
       a: cameraWasOnB ? null : current.b,
       b: current.a,
     }));
+    if (audioMosh.enabled) void bindCurrentAudio();
   }
 
   async function snapToA() {
@@ -760,6 +819,7 @@ export function SmooshApp() {
         frames < 0 ? "backward" : "forward",
       );
       setOutputLooping(started);
+      if (started) recorderRef.current?.punchJump("output", frames);
       useSmoosh
         .getState()
         .setToast(
@@ -791,6 +851,7 @@ export function SmooshApp() {
       forcePrime: !engine.primed,
       inject: true,
     });
+    recorderRef.current?.punchJump(touchJumpTarget, frames);
     state.setToast(
       `${touchJumpTarget === "both" ? "A + B" : touchJumpTarget.toUpperCase()} ${frames > 0 ? "+" : ""}${frames} FRAMES`,
     );
@@ -1015,6 +1076,7 @@ export function SmooshApp() {
     event.currentTarget.setPointerCapture(event.pointerId);
     setInfecting(true);
     engineRef.current?.setInfecting(true);
+    recorderRef.current?.setSmear(true);
     void ignite();
   }
 
@@ -1024,12 +1086,14 @@ export function SmooshApp() {
     }
     setInfecting(false);
     engineRef.current?.setInfecting(false);
+    recorderRef.current?.setSmear(false);
   }
 
   function beginKeyboardInfect(event: KeyboardEvent<HTMLButtonElement>) {
     if ((event.key !== "Enter" && event.key !== " ") || event.repeat) return;
     setInfecting(true);
     engineRef.current?.setInfecting(true);
+    recorderRef.current?.setSmear(true);
     void ignite();
   }
 
@@ -1037,6 +1101,7 @@ export function SmooshApp() {
     if (event.key !== "Enter" && event.key !== " ") return;
     setInfecting(false);
     engineRef.current?.setInfecting(false);
+    recorderRef.current?.setSmear(false);
   }
 
   const pv = store.performanceView;
@@ -1066,6 +1131,7 @@ export function SmooshApp() {
         "app-shell",
         store.color.enabled && "color-feed-open",
         touchJump && "touch-jump-open",
+        audioMosh.enabled && "audio-mosh-open",
       )}
     >
       <div className="noise" aria-hidden />
@@ -1206,6 +1272,14 @@ export function SmooshApp() {
         >
           TOUCH JUMP
         </button>
+        <button
+          type="button"
+          className={cn(audioMosh.enabled && "on audio-mosh-toggle")}
+          aria-pressed={audioMosh.enabled}
+          onClick={() => void toggleAudioMosh()}
+        >
+          AUDIO MOSH
+        </button>
         {store.symmetry.enabled && (
           <>
             <button
@@ -1256,6 +1330,20 @@ export function SmooshApp() {
           }}
           onJump={performTouchJump}
           onRelease={releaseOutputLoop}
+        />
+      )}
+      {audioMosh.enabled && (
+        <AudioMoshPanel
+          settings={audioMosh}
+          route={store.audio}
+          hasAudioSource={
+            store.slotA.kind === "video" || store.slotB.kind === "video"
+          }
+          onRoute={selectAudioRoute}
+          onChange={patchAudioMosh}
+          onSweetSpot={() =>
+            patchAudioMosh({ ...AUDIO_MOSH_SWEET_SPOT, enabled: true })
+          }
         />
       )}
 
@@ -2108,6 +2196,89 @@ function TouchJumpControls({
           >
             {frames > 0 ? `+${frames}` : frames}
           </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function AudioMoshPanel({
+  settings,
+  route,
+  hasAudioSource,
+  onRoute,
+  onChange,
+  onSweetSpot,
+}: {
+  settings: AudioMoshSettings;
+  route: AudioRoute;
+  hasAudioSource: boolean;
+  onRoute: (route: AudioRoute) => void;
+  onChange: (patch: Partial<AudioMoshSettings>) => void;
+  onSweetSpot: () => void;
+}) {
+  const controls: Array<{
+    key: "aLevel" | "bLevel" | "stutter" | "echo";
+    label: string;
+  }> = [
+    { key: "aLevel", label: "A BODY" },
+    { key: "bLevel", label: "B GHOST" },
+    { key: "stutter", label: "STUTTER" },
+    { key: "echo", label: "ECHO" },
+  ];
+  const routes: Array<{ id: AudioRoute; label: string }> = [
+    { id: "a", label: "A ONLY" },
+    { id: "b", label: "B ONLY" },
+    { id: "mix", label: "BOTH" },
+    { id: "mute", label: "SILENT" },
+  ];
+
+  return (
+    <section className="audio-mosh" aria-label="Audio Mosh controls">
+      <div className="audio-mosh-head">
+        <div>
+          <strong>AUDIO MOSH</strong>
+          <span>JUMPS CHEW SOUND · HOLD SMOOSH DROWNS IT</span>
+        </div>
+        <button type="button" onClick={onSweetSpot}>
+          SWEET SPOT
+        </button>
+      </div>
+      <div className="audio-route-rail" aria-label="Audio source route">
+        {routes.map((item) => (
+          <button
+            type="button"
+            key={item.id}
+            className={cn(route === item.id && "on")}
+            aria-pressed={route === item.id}
+            onClick={() => onRoute(item.id)}
+          >
+            {item.label}
+          </button>
+        ))}
+        <small>
+          {hasAudioSource ? "LIVE DAMAGE" : "LOAD A VIDEO WITH SOUND"}
+        </small>
+      </div>
+      <div className="audio-mosh-knobs">
+        {controls.map((control) => (
+          <label key={control.key}>
+            <span>
+              {control.label}
+              <b>{Math.round(settings[control.key] * 100)}%</b>
+            </span>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.01}
+              value={settings[control.key]}
+              aria-label={`Audio Mosh ${control.label.toLowerCase()}`}
+              onChange={(event) =>
+                onChange({ [control.key]: Number(event.target.value) })
+              }
+            />
+          </label>
         ))}
       </div>
     </section>
