@@ -1377,6 +1377,10 @@ body {
   --organ-color: var(--color-yellow);
 }
 
+.gravity-well-controls {
+  --organ-color: var(--color-pink);
+}
+
 .mode-organ-title {
   display: grid;
   gap: 4px;

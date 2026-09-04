@@ -14,7 +14,8 @@ export type SmooshMode =
   | "vortex"
   | "print"
   | "bitsplice"
-  | "flowsort";
+  | "flowsort"
+  | "gravity";
 
 export type QualityLevel = "performance" | "balanced" | "high";
 
@@ -209,6 +210,18 @@ export const DEFAULT_FLOW_SORT: FlowSortSettings = {
   polarity: 0.62,
 };
 
+export interface GravityWellSettings {
+  mass: number;
+  reach: number;
+  orbit: number;
+}
+
+export const DEFAULT_GRAVITY_WELLS: GravityWellSettings = {
+  mass: 0.72,
+  reach: 0.52,
+  orbit: 0.38,
+};
+
 export const DEFAULT_SYMMETRY: SymmetrySettings = {
   enabled: false,
   axis: 0.5,
@@ -328,6 +341,10 @@ export const MODE_META: Record<SmooshMode, { label: string; hint: string }> = {
   flowsort: {
     label: "FLOW-SORT ADVECTION",
     hint: "B combs A along its motion. Bright and dark pixels fight for the front.",
+  },
+  gravity: {
+    label: "GRAVITY WELLS",
+    hint: "B turns motion into gravity. A pinches, orbits, and tears around invisible masses.",
   },
 };
 

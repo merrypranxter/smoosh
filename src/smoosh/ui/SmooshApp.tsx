@@ -75,6 +75,7 @@ import {
   DEFAULT_BINARY_PRINT,
   DEFAULT_COLLISION,
   DEFAULT_FLOW_SORT,
+  DEFAULT_GRAVITY_WELLS,
   DEFAULT_INFECTION,
   DEFAULT_LABYRINTH,
   DEFAULT_MACRO,
@@ -108,6 +109,7 @@ const MODES: SmooshMode[] = [
   "print",
   "bitsplice",
   "flowsort",
+  "gravity",
 ];
 
 const COLOR_EFFECTS: ColorEffect[] = [
@@ -1416,6 +1418,7 @@ export function SmooshApp() {
           {store.mode === "print" && <BinaryPrintControls />}
           {store.mode === "bitsplice" && <BitPlaneControls />}
           {store.mode === "flowsort" && <FlowSortControls />}
+          {store.mode === "gravity" && <GravityWellControls />}
 
           <ProcessionStrip
             steps={processionSteps}
@@ -3097,6 +3100,51 @@ function FlowSortControls() {
             value={effect[key]}
             onChange={(event) =>
               store.setFlowSort({ [key]: Number(event.target.value) })
+            }
+          />
+        </label>
+      ))}
+    </section>
+  );
+}
+
+function GravityWellControls() {
+  const store = useSmoosh();
+  const effect = store.gravityWells;
+  return (
+    <section
+      className="gravity-well-controls mode-organ-controls"
+      aria-label="Gravity Wells controls"
+    >
+      <div className="mode-organ-title">
+        <strong>KINETIC SINGULARITIES</strong>
+        <button
+          type="button"
+          onClick={() => store.setGravityWells(DEFAULT_GRAVITY_WELLS)}
+        >
+          SWEET SPOT
+        </button>
+      </div>
+      {(
+        [
+          ["MASS", "mass"],
+          ["REACH", "reach"],
+          ["ORBIT", "orbit"],
+        ] as const
+      ).map(([label, key]) => (
+        <label className="mode-organ-knob" key={key}>
+          <span>
+            {label} <b>{Math.round(effect[key] * 100)}%</b>
+          </span>
+          <input
+            aria-label={`Gravity Wells ${label.toLowerCase()}`}
+            type="range"
+            min={0}
+            max={1}
+            step={0.01}
+            value={effect[key]}
+            onChange={(event) =>
+              store.setGravityWells({ [key]: Number(event.target.value) })
             }
           />
         </label>

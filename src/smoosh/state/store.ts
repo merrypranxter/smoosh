@@ -6,6 +6,7 @@ import {
   DEFAULT_COLOR,
   DEFAULT_COLLISION,
   DEFAULT_FLOW_SORT,
+  DEFAULT_GRAVITY_WELLS,
   DEFAULT_INFECTION,
   DEFAULT_LABYRINTH,
   DEFAULT_MACRO,
@@ -21,6 +22,7 @@ import {
   type ColorSettings,
   type CollisionSettings,
   type FlowSortSettings,
+  type GravityWellSettings,
   type InfectionSettings,
   type LabyrinthSettings,
   type EngineParams,
@@ -75,6 +77,7 @@ export interface SmooshStore {
   binaryPrint: BinaryPrintSettings;
   bitPlane: BitPlaneSettings;
   flowSort: FlowSortSettings;
+  gravityWells: GravityWellSettings;
   setParam: <K extends keyof EngineParams>(
     key: K,
     value: EngineParams[K],
@@ -107,6 +110,7 @@ export interface SmooshStore {
   setBinaryPrint: (patch: Partial<BinaryPrintSettings>) => void;
   setBitPlane: (patch: Partial<BitPlaneSettings>) => void;
   setFlowSort: (patch: Partial<FlowSortSettings>) => void;
+  setGravityWells: (patch: Partial<GravityWellSettings>) => void;
   resetParams: () => void;
   randomizeParams: () => void;
 }
@@ -175,6 +179,7 @@ export const useSmoosh = create<SmooshStore>((set, get) => ({
   binaryPrint: { ...DEFAULT_BINARY_PRINT },
   bitPlane: { ...DEFAULT_BIT_PLANE },
   flowSort: { ...DEFAULT_FLOW_SORT },
+  gravityWells: { ...DEFAULT_GRAVITY_WELLS },
   setParam: (key, value) =>
     set((s) => ({ params: { ...s.params, [key]: value } })),
   setParams: (p) => set({ params: { ...DEFAULT_PARAMS, ...p } }),
@@ -381,6 +386,22 @@ export const useSmoosh = create<SmooshStore>((set, get) => ({
         polarity: Math.min(
           1,
           Math.max(0, patch.polarity ?? state.flowSort.polarity),
+        ),
+      },
+    })),
+  setGravityWells: (patch) =>
+    set((state) => ({
+      gravityWells: {
+        ...state.gravityWells,
+        ...patch,
+        mass: Math.min(1, Math.max(0, patch.mass ?? state.gravityWells.mass)),
+        reach: Math.min(
+          1,
+          Math.max(0, patch.reach ?? state.gravityWells.reach),
+        ),
+        orbit: Math.min(
+          1,
+          Math.max(0, patch.orbit ?? state.gravityWells.orbit),
         ),
       },
     })),

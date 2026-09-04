@@ -42,7 +42,8 @@ export function routeModeSources(
     mode === "vortex" ||
     mode === "print" ||
     mode === "bitsplice" ||
-    mode === "flowsort"
+    mode === "flowsort" ||
+    mode === "gravity"
   ) {
     return {
       pixels: solo,
@@ -91,7 +92,8 @@ export function needsSourceForMode(
     mode === "vortex" ||
     mode === "print" ||
     mode === "bitsplice" ||
-    mode === "flowsort"
+    mode === "flowsort" ||
+    mode === "gravity"
   ) {
     return !hasA && !hasB;
   }

@@ -31,6 +31,7 @@ const MODES = new Set<SmooshMode>([
   "print",
   "bitsplice",
   "flowsort",
+  "gravity",
 ]);
 
 export function defaultProcession(): ProcessionStep[] {

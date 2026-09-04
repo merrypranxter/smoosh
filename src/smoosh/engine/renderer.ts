@@ -5,6 +5,7 @@ import type {
   ColorSettings,
   CollisionSettings,
   FlowSortSettings,
+  GravityWellSettings,
   InfectionSettings,
   LabyrinthSettings,
   EngineParams,
@@ -66,6 +67,7 @@ export interface RenderInputs {
   binaryPrint: BinaryPrintSettings;
   bitPlane: BitPlaneSettings;
   flowSort: FlowSortSettings;
+  gravityWells: GravityWellSettings;
 }
 
 export interface PrimeInputs {
@@ -284,6 +286,10 @@ export class SmooshRenderer {
           "uSortTrigger",
           "uSortLength",
           "uSortPolarity",
+          "uGravityMode",
+          "uWellMass",
+          "uWellReach",
+          "uWellOrbit",
           ...COLOR_UNIFORMS,
         ]),
       };
@@ -738,6 +744,8 @@ export class SmooshRenderer {
       input.bitPlane,
       input.mode === "flowsort",
       input.flowSort,
+      input.mode === "gravity",
+      input.gravityWells,
       input.color,
     );
 
@@ -775,6 +783,8 @@ export class SmooshRenderer {
         input.bitPlane,
         false,
         input.flowSort,
+        false,
+        input.gravityWells,
         input.color,
       );
       this.mixFeedbacks(input.params.crossBalance);
@@ -875,6 +885,8 @@ export class SmooshRenderer {
     bitPlane: BitPlaneSettings,
     flowSortMode: boolean,
     flowSort: FlowSortSettings,
+    gravityMode: boolean,
+    gravityWells: GravityWellSettings,
     color: ColorSettings,
   ): void {
     const gl = this.gl;
@@ -953,6 +965,10 @@ export class SmooshRenderer {
     gl.uniform1f(this.moshProg.loc.uSortTrigger, flowSort.trigger);
     gl.uniform1f(this.moshProg.loc.uSortLength, flowSort.length);
     gl.uniform1f(this.moshProg.loc.uSortPolarity, flowSort.polarity);
+    gl.uniform1i(this.moshProg.loc.uGravityMode, gravityMode ? 1 : 0);
+    gl.uniform1f(this.moshProg.loc.uWellMass, gravityWells.mass);
+    gl.uniform1f(this.moshProg.loc.uWellReach, gravityWells.reach);
+    gl.uniform1f(this.moshProg.loc.uWellOrbit, gravityWells.orbit);
     this.setColorUniforms(
       this.moshProg,
       color,

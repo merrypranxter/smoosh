@@ -232,6 +232,10 @@ uniform int uFlowSortMode;
 uniform float uSortTrigger;
 uniform float uSortLength;
 uniform float uSortPolarity;
+uniform int uGravityMode;
+uniform float uWellMass;
+uniform float uWellReach;
+uniform float uWellOrbit;
 ${FLOW_COMMON}
 ${COLOR_COMMON}
 
@@ -624,6 +628,64 @@ void main() {
       clamp(uRefresh * (1.0 - motionGate * 0.78) + uBleed * 0.24, 0.0, 1.0)
     );
     fragColor = vec4(clamp(color, 0.0, 1.0), 1.0);
+    return;
+  }
+
+  if (uGravityMode == 1) {
+    vec2 wellOffset = vec2(0.0);
+    float fieldStrength = 0.0;
+    float reach = mix(0.045, 0.34, uWellReach);
+    float softening = mix(0.0024, 0.00028, uWellMass);
+
+    for (int wellY = 0; wellY < 3; wellY++) {
+      for (int wellX = 0; wellX < 3; wellX++) {
+        vec2 cell = vec2(float(wellX), float(wellY));
+        vec2 anchor = (cell + 0.5) / 3.0;
+        vec2 wellFlow = decodeFlow(texture(uFlow, anchor).xy) * uGain;
+        float energy = length(wellFlow);
+        float awake = smoothstep(0.0012, 0.034, energy);
+        anchor = clamp(anchor + wellFlow * 2.4, vec2(0.02), vec2(0.98));
+
+        vec2 toward = anchor - vUv;
+        float distanceSq = dot(toward, toward);
+        float distanceToWell = sqrt(distanceSq + softening);
+        float falloff = exp(-distanceSq / max(reach * reach, 0.0001));
+        vec2 radial = toward / distanceToWell;
+        vec2 tangent = vec2(-radial.y, radial.x);
+        float handedness = macroHash(cell + 17.0) > 0.5 ? 1.0 : -1.0;
+        float kinetic = awake * falloff * (0.45 + min(energy * 18.0, 1.4));
+        vec2 force = radial * mix(0.002, 0.026, uWellMass);
+        force += tangent * handedness * mix(0.0, 0.019, uWellOrbit);
+        wellOffset += force * kinetic;
+        fieldStrength += kinetic;
+      }
+    }
+
+    float offsetLength = length(wellOffset);
+    if (offsetLength > 0.14) wellOffset *= 0.14 / offsetLength;
+    float gravityGate = clamp(fieldStrength * 0.32 + uInjectBoost * 0.5, 0.0, 1.0);
+    wellOffset *= 1.0 + uInjectBoost * 1.8;
+    vec2 warpedUv = clamp(
+      vUv - wellOffset - flow * mix(0.08, 0.52, uWellOrbit),
+      vec2(0.0),
+      vec2(1.0)
+    );
+    vec2 memoryUv = clamp(
+      warpedUv - wellOffset * mix(0.3, 1.25, uWellMass),
+      vec2(0.0),
+      vec2(1.0)
+    );
+    vec3 bentSource = colorFeedSample(uSource, warpedUv, uTexel);
+    vec3 foldedPast = texture(uFeedback, memoryUv).rgb * uPersist;
+    float memoryAmount = gravityGate * mix(0.24, 0.7, uWellMass);
+    vec3 collapsed = mix(bentSource, foldedPast, memoryAmount);
+    vec3 cleanSource = colorFeedSample(uSource, vUv, uTexel);
+    collapsed = mix(
+      collapsed,
+      cleanSource,
+      clamp(uRefresh * (1.0 - gravityGate * 0.84) + uBleed * 0.22, 0.0, 1.0)
+    );
+    fragColor = vec4(clamp(collapsed, 0.0, 1.0), 1.0);
     return;
   }
 
