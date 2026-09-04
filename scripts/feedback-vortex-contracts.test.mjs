@@ -22,6 +22,7 @@ test("curl vortex derives rotation from neighboring flow", () => {
   assert.match(MODE_META.vortex.hint, /local whirlpools/);
   assert.match(MOSH_FRAG, /float curl = \(flowR\.y - flowL\.y\) - \(flowU\.x - flowD\.x\)/);
   assert.match(MOSH_FRAG, /rotate\(local, angle\)/);
+  assert.doesNotMatch(MOSH_FRAG, /\b(?:float|int|bool|vec[234])\s+active\b/);
 });
 
 test("both new modes accept one source and prefer B as wind", () => {

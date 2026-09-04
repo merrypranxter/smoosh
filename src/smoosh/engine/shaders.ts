@@ -424,10 +424,10 @@ void main() {
     vortexUv -= flow * mix(0.18, 0.72, uVortexTurbulence) + tangent * curl * uVortexSwirl * 2.4;
     vec3 swirled = texture(uFeedback, clamp(vortexUv, vec2(0.0), vec2(1.0))).rgb * uPersist;
     vec3 src = colorFeedSample(uSource, vUv, uTexel);
-    float active = smoothstep(0.001, 0.027, length(flow) + abs(curl) * 2.0);
-    float vortexMix = active * mix(0.4, 1.0, uVortexSwirl);
+    float motionMask = smoothstep(0.001, 0.027, length(flow) + abs(curl) * 2.0);
+    float vortexMix = motionMask * mix(0.4, 1.0, uVortexSwirl);
     vec3 color = mix(src, swirled, vortexMix);
-    color = mix(color, src, clamp(uRefresh * (1.0 - active * 0.78) + uInjectBoost * 0.16 + uBleed * 0.35, 0.0, 1.0));
+    color = mix(color, src, clamp(uRefresh * (1.0 - motionMask * 0.78) + uInjectBoost * 0.16 + uBleed * 0.35, 0.0, 1.0));
     fragColor = vec4(clamp(color, 0.0, 1.0), 1.0);
     return;
   }
