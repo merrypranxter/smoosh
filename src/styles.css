@@ -1352,13 +1352,29 @@ body {
   padding: 8px;
   border: 1px solid color-mix(in oklab, var(--organ-color) 58%, transparent);
   border-radius: 13px;
-  background: radial-gradient(circle at 12% 50%, color-mix(in oklab, var(--organ-color) 13%, transparent), transparent 36%), var(--color-ink-2);
+  background:
+    radial-gradient(
+      circle at 12% 50%,
+      color-mix(in oklab, var(--organ-color) 13%, transparent),
+      transparent 36%
+    ),
+    var(--color-ink-2);
 }
 
-.labyrinth-controls { --organ-color: var(--color-cyan); }
-.vortex-controls { --organ-color: var(--color-yellow); }
+.labyrinth-controls {
+  --organ-color: var(--color-cyan);
+}
+.vortex-controls {
+  --organ-color: var(--color-yellow);
+}
+.print-controls {
+  --organ-color: var(--color-pink);
+}
 
-.mode-organ-title { display: grid; gap: 4px; }
+.mode-organ-title {
+  display: grid;
+  gap: 4px;
+}
 .mode-organ-title strong {
   color: var(--organ-color);
   font-family: var(--font-mono);
@@ -1377,7 +1393,11 @@ body {
   font-weight: 800;
   letter-spacing: 0.05em;
 }
-.mode-organ-knob { min-width: 0; display: grid; gap: 4px; }
+.mode-organ-knob {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
 .mode-organ-knob > span {
   display: flex;
   justify-content: space-between;
@@ -1388,8 +1408,15 @@ body {
   letter-spacing: 0.04em;
   white-space: nowrap;
 }
-.mode-organ-knob b { color: var(--organ-color); font-weight: 800; }
-.mode-organ-knob input[type="range"] { width: 100%; min-height: 22px; accent-color: var(--organ-color); }
+.mode-organ-knob b {
+  color: var(--organ-color);
+  font-weight: 800;
+}
+.mode-organ-knob input[type="range"] {
+  width: 100%;
+  min-height: 22px;
+  accent-color: var(--organ-color);
+}
 
 .procession {
   min-width: 0;
@@ -1691,8 +1718,14 @@ body {
     justify-content: space-between;
   }
 
-  .mode-organ-title button { min-height: 28px; }
-  .mode-organ-knob > span { flex-direction: column; gap: 1px; font-size: 0.5rem; }
+  .mode-organ-title button {
+    min-height: 28px;
+  }
+  .mode-organ-knob > span {
+    flex-direction: column;
+    gap: 1px;
+    font-size: 0.5rem;
+  }
 
   .procession {
     grid-template-columns: auto minmax(0, 1fr);

@@ -324,6 +324,7 @@ export class SmooshEngine {
       labyrinth: s.labyrinth,
       labyrinthTime: this.labyrinthClock,
       vortex: s.vortex,
+      binaryPrint: s.binaryPrint,
     });
 
     const outputW = 240;

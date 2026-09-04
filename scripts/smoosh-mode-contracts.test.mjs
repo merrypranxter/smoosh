@@ -18,7 +18,7 @@ import {
 } from "../src/smoosh/procession.ts";
 import { MOSH_FRAG } from "../src/smoosh/engine/shaders.ts";
 
-test("the mode oracle uses exactly thirteen contracts", () => {
+test("the mode oracle uses exactly fourteen contracts", () => {
   assert.deepEqual(
     Object.fromEntries(
       Object.entries(MODE_META).map(([mode, meta]) => [mode, meta.hint]),
@@ -43,9 +43,11 @@ test("the mode oracle uses exactly thirteen contracts", () => {
         "Motion closes the gate. The trapped output folds inward and echoes itself.",
       vortex:
         "Straight motion curls into local whirlpools. Every gesture leaves weather behind.",
+      print:
+        "A becomes ink. B makes the printing matrix crawl out of registration.",
     },
   );
-  assert.equal(Object.keys(MODE_META).length, 13);
+  assert.equal(Object.keys(MODE_META).length, 14);
 });
 
 test("moving transfer and cross route A pixels against B motion", () => {
@@ -103,6 +105,7 @@ test("source requirements match the one-source fallbacks", () => {
   assert.equal(needsSourceForMode("collision", true, false, false), false);
   assert.equal(needsSourceForMode("labyrinth", true, false, false), false);
   assert.equal(needsSourceForMode("vortex", false, true, false), false);
+  assert.equal(needsSourceForMode("print", true, false, false), false);
   assert.equal(needsSourceForMode("hold", false, false, true), true);
 });
 

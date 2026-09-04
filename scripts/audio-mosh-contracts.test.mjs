@@ -67,5 +67,5 @@ test("A, B, both, and silence are explicit and swapping can reuse media nodes", 
 test("Audio Mosh remains an organ while the visual mode rail grows", () => {
   assert.match(ui, /AUDIO MOSH/);
   const modes = ui.match(/const MODES:[\s\S]*?\];/)?.[0] ?? "";
-  assert.equal([...modes.matchAll(/^\s*"[a-z]+",$/gm)].length, 13);
+  assert.equal([...modes.matchAll(/^\s*"[a-z]+",$/gm)].length, 14);
 });

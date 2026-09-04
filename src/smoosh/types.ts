@@ -11,7 +11,8 @@ export type SmooshMode =
   | "collision"
   | "infection"
   | "labyrinth"
-  | "vortex";
+  | "vortex"
+  | "print";
 
 export type QualityLevel = "performance" | "balanced" | "high";
 
@@ -170,6 +171,18 @@ export const DEFAULT_VORTEX: VortexSettings = {
   turbulence: 0.36,
 };
 
+export interface BinaryPrintSettings {
+  crush: number;
+  dotScale: number;
+  migration: number;
+}
+
+export const DEFAULT_BINARY_PRINT: BinaryPrintSettings = {
+  crush: 0.78,
+  dotScale: 0.46,
+  migration: 0.74,
+};
+
 export const DEFAULT_SYMMETRY: SymmetrySettings = {
   enabled: false,
   axis: 0.5,
@@ -277,6 +290,10 @@ export const MODE_META: Record<SmooshMode, { label: string; hint: string }> = {
   vortex: {
     label: "CURL VORTEX",
     hint: "Straight motion curls into local whirlpools. Every gesture leaves weather behind.",
+  },
+  print: {
+    label: "BINARY PRINT VIOLENCE",
+    hint: "A becomes ink. B makes the printing matrix crawl out of registration.",
   },
 };
 

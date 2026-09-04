@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import {
   DEFAULT_PARAMS,
+  DEFAULT_BINARY_PRINT,
   DEFAULT_COLOR,
   DEFAULT_COLLISION,
   DEFAULT_INFECTION,
@@ -13,6 +14,7 @@ import {
   type AspectPreset,
   type AudioRoute,
   type BufferPattern,
+  type BinaryPrintSettings,
   type ColorSettings,
   type CollisionSettings,
   type InfectionSettings,
@@ -66,6 +68,7 @@ export interface SmooshStore {
   infection: InfectionSettings;
   labyrinth: LabyrinthSettings;
   vortex: VortexSettings;
+  binaryPrint: BinaryPrintSettings;
   setParam: <K extends keyof EngineParams>(
     key: K,
     value: EngineParams[K],
@@ -95,6 +98,7 @@ export interface SmooshStore {
   setInfection: (patch: Partial<InfectionSettings>) => void;
   setLabyrinth: (patch: Partial<LabyrinthSettings>) => void;
   setVortex: (patch: Partial<VortexSettings>) => void;
+  setBinaryPrint: (patch: Partial<BinaryPrintSettings>) => void;
   resetParams: () => void;
   randomizeParams: () => void;
 }
@@ -160,6 +164,7 @@ export const useSmoosh = create<SmooshStore>((set, get) => ({
   infection: { ...DEFAULT_INFECTION },
   labyrinth: { ...DEFAULT_LABYRINTH },
   vortex: { ...DEFAULT_VORTEX },
+  binaryPrint: { ...DEFAULT_BINARY_PRINT },
   setParam: (key, value) =>
     set((s) => ({ params: { ...s.params, [key]: value } })),
   setParams: (p) => set({ params: { ...DEFAULT_PARAMS, ...p } }),
@@ -321,7 +326,26 @@ export const useSmoosh = create<SmooshStore>((set, get) => ({
         ...patch,
         swirl: Math.min(1, Math.max(0, patch.swirl ?? state.vortex.swirl)),
         radius: Math.min(1, Math.max(0, patch.radius ?? state.vortex.radius)),
-        turbulence: Math.min(1, Math.max(0, patch.turbulence ?? state.vortex.turbulence)),
+        turbulence: Math.min(
+          1,
+          Math.max(0, patch.turbulence ?? state.vortex.turbulence),
+        ),
+      },
+    })),
+  setBinaryPrint: (patch) =>
+    set((state) => ({
+      binaryPrint: {
+        ...state.binaryPrint,
+        ...patch,
+        crush: Math.min(1, Math.max(0, patch.crush ?? state.binaryPrint.crush)),
+        dotScale: Math.min(
+          1,
+          Math.max(0, patch.dotScale ?? state.binaryPrint.dotScale),
+        ),
+        migration: Math.min(
+          1,
+          Math.max(0, patch.migration ?? state.binaryPrint.migration),
+        ),
       },
     })),
   resetParams: () => set({ params: { ...DEFAULT_PARAMS } }),

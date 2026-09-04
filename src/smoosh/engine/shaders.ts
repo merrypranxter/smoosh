@@ -220,6 +220,10 @@ uniform int uVortexMode;
 uniform float uVortexSwirl;
 uniform float uVortexRadius;
 uniform float uVortexTurbulence;
+uniform int uPrintMode;
+uniform float uPrintCrush;
+uniform float uPrintDotScale;
+uniform float uPrintMigration;
 ${FLOW_COMMON}
 ${COLOR_COMMON}
 
@@ -237,6 +241,17 @@ float macroHash(vec2 p) {
 
 vec2 macroHash2(vec2 p) {
   return vec2(macroHash(p + 17.17), macroHash(p + 71.71));
+}
+
+float bayer4(vec2 p) {
+  float x = mod(floor(p.x), 4.0);
+  float y = mod(floor(p.y), 4.0);
+  float row0 = x < 1.0 ? 0.0 : x < 2.0 ? 8.0 : x < 3.0 ? 2.0 : 10.0;
+  float row1 = x < 1.0 ? 12.0 : x < 2.0 ? 4.0 : x < 3.0 ? 14.0 : 6.0;
+  float row2 = x < 1.0 ? 3.0 : x < 2.0 ? 11.0 : x < 3.0 ? 1.0 : 9.0;
+  float row3 = x < 1.0 ? 15.0 : x < 2.0 ? 7.0 : x < 3.0 ? 13.0 : 5.0;
+  float value = y < 1.0 ? row0 : y < 2.0 ? row1 : y < 3.0 ? row2 : row3;
+  return (value + 0.5) / 16.0;
 }
 
 void main() {
@@ -428,6 +443,45 @@ void main() {
     float vortexMix = motionMask * mix(0.4, 1.0, uVortexSwirl);
     vec3 color = mix(src, swirled, vortexMix);
     color = mix(color, src, clamp(uRefresh * (1.0 - motionMask * 0.78) + uInjectBoost * 0.16 + uBleed * 0.35, 0.0, 1.0));
+    fragColor = vec4(clamp(color, 0.0, 1.0), 1.0);
+    return;
+  }
+
+  if (uPrintMode == 1) {
+    float motionEnergy = length(flow);
+    float motionMask = smoothstep(0.001, 0.038, motionEnergy);
+    float dotPx = mix(1.0, 7.0, uPrintDotScale);
+    dotPx *= 1.0 + motionMask * mix(0.0, 3.5, uPrintDotScale);
+    vec2 phaseShift = (flow / max(uTexel, vec2(1.0e-5))) * uPrintMigration * 0.16;
+    phaseShift += vec2(uInjectBoost * 5.0, -uInjectBoost * 3.0);
+    vec2 matrixCoord = gl_FragCoord.xy / dotPx + phaseShift;
+    float threshold = bayer4(matrixCoord);
+    vec2 warpedUv = clamp(
+      vUv - flow * mix(0.25, 1.9, uPrintMigration),
+      vec2(0.0),
+      vec2(1.0)
+    );
+    vec3 src = colorFeedSample(uSource, warpedUv, uTexel);
+    float luma = dot(src, vec3(0.299, 0.587, 0.114));
+    float hardness = mix(0.2, 0.012, uPrintCrush);
+    float inkMask = smoothstep(threshold - hardness, threshold + hardness, luma);
+    float accentSignal = src.r * 0.72 + src.b * 0.44 - src.g * 0.3;
+    float accentPlate = smoothstep(
+      bayer4(matrixCoord + vec2(1.75, -0.85)) - hardness,
+      bayer4(matrixCoord + vec2(1.75, -0.85)) + hardness,
+      accentSignal
+    );
+    vec3 blackInk = vec3(0.012, 0.004, 0.028);
+    vec3 paper = vec3(0.99, 0.91, 0.52);
+    vec3 riotInk = vec3(1.0, 0.015, 0.39);
+    vec3 printed = mix(blackInk, paper, inkMask);
+    printed = mix(printed, riotInk, accentPlate * (1.0 - inkMask * 0.58) * mix(0.35, 0.88, uPrintCrush));
+    vec2 oldUv = clamp(vUv - flow * mix(0.4, 2.35, uPrintMigration), vec2(0.0), vec2(1.0));
+    vec3 oldPrint = floor(texture(uFeedback, oldUv).rgb * 4.0 + 0.5) / 4.0;
+    oldPrint *= uPersist;
+    float trail = motionMask * uPrintMigration * mix(0.28, 0.76, uPrintCrush);
+    vec3 color = mix(printed, oldPrint, trail);
+    color = mix(color, printed, clamp(uRefresh * (1.0 - motionMask * 0.72) + uBleed * 0.22, 0.0, 1.0));
     fragColor = vec4(clamp(color, 0.0, 1.0), 1.0);
     return;
   }

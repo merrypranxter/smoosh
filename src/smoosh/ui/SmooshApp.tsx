@@ -71,6 +71,7 @@ import {
 import { useSmoosh } from "@/smoosh/state/store";
 import {
   COLOR_EFFECT_META,
+  DEFAULT_BINARY_PRINT,
   DEFAULT_COLLISION,
   DEFAULT_INFECTION,
   DEFAULT_LABYRINTH,
@@ -102,6 +103,7 @@ const MODES: SmooshMode[] = [
   "infection",
   "labyrinth",
   "vortex",
+  "print",
 ];
 
 const COLOR_EFFECTS: ColorEffect[] = [
@@ -1407,6 +1409,7 @@ export function SmooshApp() {
           {store.mode === "infection" && <RegionalInfectionControls />}
           {store.mode === "labyrinth" && <FeedbackLabyrinthControls />}
           {store.mode === "vortex" && <CurlVortexControls />}
+          {store.mode === "print" && <BinaryPrintControls />}
 
           <ProcessionStrip
             steps={processionSteps}
@@ -2878,20 +2881,30 @@ function FeedbackLabyrinthControls() {
   const store = useSmoosh();
   const effect = store.labyrinth;
   return (
-    <section className="labyrinth-controls mode-organ-controls" aria-label="Feedback Labyrinth controls">
+    <section
+      className="labyrinth-controls mode-organ-controls"
+      aria-label="Feedback Labyrinth controls"
+    >
       <div className="mode-organ-title">
         <strong>LOOP CHAMBER</strong>
-        <button type="button" onClick={() => store.setLabyrinth(DEFAULT_LABYRINTH)}>
+        <button
+          type="button"
+          onClick={() => store.setLabyrinth(DEFAULT_LABYRINTH)}
+        >
           SWEET SPOT
         </button>
       </div>
-      {([
-        ["DEPTH", "depth"],
-        ["TWIST", "twist"],
-        ["GATE", "gate"],
-      ] as const).map(([label, key]) => (
+      {(
+        [
+          ["DEPTH", "depth"],
+          ["TWIST", "twist"],
+          ["GATE", "gate"],
+        ] as const
+      ).map(([label, key]) => (
         <label className="mode-organ-knob" key={key}>
-          <span>{label} <b>{Math.round(effect[key] * 100)}%</b></span>
+          <span>
+            {label} <b>{Math.round(effect[key] * 100)}%</b>
+          </span>
           <input
             aria-label={`Feedback Labyrinth ${label.toLowerCase()}`}
             type="range"
@@ -2899,7 +2912,9 @@ function FeedbackLabyrinthControls() {
             max={1}
             step={0.01}
             value={effect[key]}
-            onChange={(event) => store.setLabyrinth({ [key]: Number(event.target.value) })}
+            onChange={(event) =>
+              store.setLabyrinth({ [key]: Number(event.target.value) })
+            }
           />
         </label>
       ))}
@@ -2911,20 +2926,27 @@ function CurlVortexControls() {
   const store = useSmoosh();
   const effect = store.vortex;
   return (
-    <section className="vortex-controls mode-organ-controls" aria-label="Curl Vortex controls">
+    <section
+      className="vortex-controls mode-organ-controls"
+      aria-label="Curl Vortex controls"
+    >
       <div className="mode-organ-title">
         <strong>WEATHER ENGINE</strong>
         <button type="button" onClick={() => store.setVortex(DEFAULT_VORTEX)}>
           SWEET SPOT
         </button>
       </div>
-      {([
-        ["SWIRL", "swirl"],
-        ["RADIUS", "radius"],
-        ["TURBULENCE", "turbulence"],
-      ] as const).map(([label, key]) => (
+      {(
+        [
+          ["SWIRL", "swirl"],
+          ["RADIUS", "radius"],
+          ["TURBULENCE", "turbulence"],
+        ] as const
+      ).map(([label, key]) => (
         <label className="mode-organ-knob" key={key}>
-          <span>{label} <b>{Math.round(effect[key] * 100)}%</b></span>
+          <span>
+            {label} <b>{Math.round(effect[key] * 100)}%</b>
+          </span>
           <input
             aria-label={`Curl Vortex ${label.toLowerCase()}`}
             type="range"
@@ -2932,7 +2954,54 @@ function CurlVortexControls() {
             max={1}
             step={0.01}
             value={effect[key]}
-            onChange={(event) => store.setVortex({ [key]: Number(event.target.value) })}
+            onChange={(event) =>
+              store.setVortex({ [key]: Number(event.target.value) })
+            }
+          />
+        </label>
+      ))}
+    </section>
+  );
+}
+
+function BinaryPrintControls() {
+  const store = useSmoosh();
+  const effect = store.binaryPrint;
+  return (
+    <section
+      className="print-controls mode-organ-controls"
+      aria-label="Binary Print Violence controls"
+    >
+      <div className="mode-organ-title">
+        <strong>INK RIOT</strong>
+        <button
+          type="button"
+          onClick={() => store.setBinaryPrint(DEFAULT_BINARY_PRINT)}
+        >
+          SWEET SPOT
+        </button>
+      </div>
+      {(
+        [
+          ["CRUSH", "crush"],
+          ["DOT SCALE", "dotScale"],
+          ["MIGRATION", "migration"],
+        ] as const
+      ).map(([label, key]) => (
+        <label className="mode-organ-knob" key={key}>
+          <span>
+            {label} <b>{Math.round(effect[key] * 100)}%</b>
+          </span>
+          <input
+            aria-label={`Binary Print Violence ${label.toLowerCase()}`}
+            type="range"
+            min={0}
+            max={1}
+            step={0.01}
+            value={effect[key]}
+            onChange={(event) =>
+              store.setBinaryPrint({ [key]: Number(event.target.value) })
+            }
           />
         </label>
       ))}

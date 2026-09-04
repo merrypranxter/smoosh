@@ -1,4 +1,5 @@
 import type {
+  BinaryPrintSettings,
   ColorEffect,
   ColorSettings,
   CollisionSettings,
@@ -60,6 +61,7 @@ export interface RenderInputs {
   labyrinth: LabyrinthSettings;
   labyrinthTime: number;
   vortex: VortexSettings;
+  binaryPrint: BinaryPrintSettings;
 }
 
 export interface PrimeInputs {
@@ -266,6 +268,10 @@ export class SmooshRenderer {
           "uVortexSwirl",
           "uVortexRadius",
           "uVortexTurbulence",
+          "uPrintMode",
+          "uPrintCrush",
+          "uPrintDotScale",
+          "uPrintMigration",
           ...COLOR_UNIFORMS,
         ]),
       };
@@ -712,6 +718,8 @@ export class SmooshRenderer {
       input.labyrinthTime,
       input.mode === "vortex",
       input.vortex,
+      input.mode === "print",
+      input.binaryPrint,
       input.color,
     );
 
@@ -743,6 +751,8 @@ export class SmooshRenderer {
         input.labyrinthTime,
         false,
         input.vortex,
+        false,
+        input.binaryPrint,
         input.color,
       );
       this.mixFeedbacks(input.params.crossBalance);
@@ -837,6 +847,8 @@ export class SmooshRenderer {
     labyrinthTime: number,
     vortexMode: boolean,
     vortex: VortexSettings,
+    printMode: boolean,
+    binaryPrint: BinaryPrintSettings,
     color: ColorSettings,
   ): void {
     const gl = this.gl;
@@ -903,6 +915,10 @@ export class SmooshRenderer {
     gl.uniform1f(this.moshProg.loc.uVortexSwirl, vortex.swirl);
     gl.uniform1f(this.moshProg.loc.uVortexRadius, vortex.radius);
     gl.uniform1f(this.moshProg.loc.uVortexTurbulence, vortex.turbulence);
+    gl.uniform1i(this.moshProg.loc.uPrintMode, printMode ? 1 : 0);
+    gl.uniform1f(this.moshProg.loc.uPrintCrush, binaryPrint.crush);
+    gl.uniform1f(this.moshProg.loc.uPrintDotScale, binaryPrint.dotScale);
+    gl.uniform1f(this.moshProg.loc.uPrintMigration, binaryPrint.migration);
     this.setColorUniforms(
       this.moshProg,
       color,
