@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import {
   DEFAULT_PARAMS,
+  DEFAULT_BIT_PLANE,
   DEFAULT_BINARY_PRINT,
   DEFAULT_COLOR,
   DEFAULT_COLLISION,
@@ -14,6 +15,7 @@ import {
   type AspectPreset,
   type AudioRoute,
   type BufferPattern,
+  type BitPlaneSettings,
   type BinaryPrintSettings,
   type ColorSettings,
   type CollisionSettings,
@@ -69,6 +71,7 @@ export interface SmooshStore {
   labyrinth: LabyrinthSettings;
   vortex: VortexSettings;
   binaryPrint: BinaryPrintSettings;
+  bitPlane: BitPlaneSettings;
   setParam: <K extends keyof EngineParams>(
     key: K,
     value: EngineParams[K],
@@ -99,6 +102,7 @@ export interface SmooshStore {
   setLabyrinth: (patch: Partial<LabyrinthSettings>) => void;
   setVortex: (patch: Partial<VortexSettings>) => void;
   setBinaryPrint: (patch: Partial<BinaryPrintSettings>) => void;
+  setBitPlane: (patch: Partial<BitPlaneSettings>) => void;
   resetParams: () => void;
   randomizeParams: () => void;
 }
@@ -165,6 +169,7 @@ export const useSmoosh = create<SmooshStore>((set, get) => ({
   labyrinth: { ...DEFAULT_LABYRINTH },
   vortex: { ...DEFAULT_VORTEX },
   binaryPrint: { ...DEFAULT_BINARY_PRINT },
+  bitPlane: { ...DEFAULT_BIT_PLANE },
   setParam: (key, value) =>
     set((s) => ({ params: { ...s.params, [key]: value } })),
   setParams: (p) => set({ params: { ...DEFAULT_PARAMS, ...p } }),
@@ -346,6 +351,16 @@ export const useSmoosh = create<SmooshStore>((set, get) => ({
           1,
           Math.max(0, patch.migration ?? state.binaryPrint.migration),
         ),
+      },
+    })),
+  setBitPlane: (patch) =>
+    set((state) => ({
+      bitPlane: {
+        ...state.bitPlane,
+        ...patch,
+        bones: Math.min(1, Math.max(0, patch.bones ?? state.bitPlane.bones)),
+        graft: Math.min(1, Math.max(0, patch.graft ?? state.bitPlane.graft)),
+        parity: Math.min(1, Math.max(0, patch.parity ?? state.bitPlane.parity)),
       },
     })),
   resetParams: () => set({ params: { ...DEFAULT_PARAMS } }),

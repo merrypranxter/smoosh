@@ -1,4 +1,5 @@
 import type {
+  BitPlaneSettings,
   BinaryPrintSettings,
   ColorEffect,
   ColorSettings,
@@ -62,6 +63,7 @@ export interface RenderInputs {
   labyrinthTime: number;
   vortex: VortexSettings;
   binaryPrint: BinaryPrintSettings;
+  bitPlane: BitPlaneSettings;
 }
 
 export interface PrimeInputs {
@@ -272,6 +274,10 @@ export class SmooshRenderer {
           "uPrintCrush",
           "uPrintDotScale",
           "uPrintMigration",
+          "uBitSpliceMode",
+          "uBitBones",
+          "uBitGraft",
+          "uBitParity",
           ...COLOR_UNIFORMS,
         ]),
       };
@@ -653,7 +659,9 @@ export class SmooshRenderer {
     }
 
     if (
-      (input.mode === "cross" || input.mode === "macro") &&
+      (input.mode === "cross" ||
+        input.mode === "macro" ||
+        input.mode === "bitsplice") &&
       mediaReady(input.pixelsB)
     ) {
       this.capture(
@@ -720,6 +728,8 @@ export class SmooshRenderer {
       input.vortex,
       input.mode === "print",
       input.binaryPrint,
+      input.mode === "bitsplice",
+      input.bitPlane,
       input.color,
     );
 
@@ -753,6 +763,8 @@ export class SmooshRenderer {
         input.vortex,
         false,
         input.binaryPrint,
+        false,
+        input.bitPlane,
         input.color,
       );
       this.mixFeedbacks(input.params.crossBalance);
@@ -849,6 +861,8 @@ export class SmooshRenderer {
     vortex: VortexSettings,
     printMode: boolean,
     binaryPrint: BinaryPrintSettings,
+    bitSpliceMode: boolean,
+    bitPlane: BitPlaneSettings,
     color: ColorSettings,
   ): void {
     const gl = this.gl;
@@ -919,6 +933,10 @@ export class SmooshRenderer {
     gl.uniform1f(this.moshProg.loc.uPrintCrush, binaryPrint.crush);
     gl.uniform1f(this.moshProg.loc.uPrintDotScale, binaryPrint.dotScale);
     gl.uniform1f(this.moshProg.loc.uPrintMigration, binaryPrint.migration);
+    gl.uniform1i(this.moshProg.loc.uBitSpliceMode, bitSpliceMode ? 1 : 0);
+    gl.uniform1f(this.moshProg.loc.uBitBones, bitPlane.bones);
+    gl.uniform1f(this.moshProg.loc.uBitGraft, bitPlane.graft);
+    gl.uniform1f(this.moshProg.loc.uBitParity, bitPlane.parity);
     this.setColorUniforms(
       this.moshProg,
       color,

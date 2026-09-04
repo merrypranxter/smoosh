@@ -29,6 +29,7 @@ const MODES = new Set<SmooshMode>([
   "labyrinth",
   "vortex",
   "print",
+  "bitsplice",
 ]);
 
 export function defaultProcession(): ProcessionStep[] {

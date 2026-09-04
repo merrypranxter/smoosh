@@ -3,10 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { MOSH_FRAG } from "../src/smoosh/engine/shaders.ts";
-import {
-  DEFAULT_MACRO,
-  MODE_META,
-} from "../src/smoosh/types.ts";
+import { DEFAULT_MACRO, MODE_META } from "../src/smoosh/types.ts";
 import { normalizeSavedProcession } from "../src/smoosh/procession.ts";
 
 const ui = readFileSync(
@@ -38,7 +35,10 @@ test("the shader steals persistent rectangular cells from donor and history", ()
   assert.match(MOSH_FRAG, /stolenPast/);
   assert.match(MOSH_FRAG, /stolenDonor/);
   assert.match(MOSH_FRAG, /uMacroMemory/);
-  assert.match(renderer, /input\.mode === "cross" \|\| input\.mode === "macro"/);
+  assert.match(
+    renderer,
+    /input\.mode === "cross" \|\|[\s\S]*?input\.mode === "macro"/,
+  );
 });
 
 test("the mobile-first mode UI exposes exactly three macro controls", () => {

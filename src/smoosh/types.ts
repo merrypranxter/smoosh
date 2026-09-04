@@ -12,7 +12,8 @@ export type SmooshMode =
   | "infection"
   | "labyrinth"
   | "vortex"
-  | "print";
+  | "print"
+  | "bitsplice";
 
 export type QualityLevel = "performance" | "balanced" | "high";
 
@@ -183,6 +184,18 @@ export const DEFAULT_BINARY_PRINT: BinaryPrintSettings = {
   migration: 0.74,
 };
 
+export interface BitPlaneSettings {
+  bones: number;
+  graft: number;
+  parity: number;
+}
+
+export const DEFAULT_BIT_PLANE: BitPlaneSettings = {
+  bones: 0.78,
+  graft: 0.72,
+  parity: 0.64,
+};
+
 export const DEFAULT_SYMMETRY: SymmetrySettings = {
   enabled: false,
   axis: 0.5,
@@ -294,6 +307,10 @@ export const MODE_META: Record<SmooshMode, { label: string; hint: string }> = {
   print: {
     label: "BINARY PRINT VIOLENCE",
     hint: "A becomes ink. B makes the printing matrix crawl out of registration.",
+  },
+  bitsplice: {
+    label: "BIT-PLANE CROSS-SPLICE",
+    hint: "A keeps its bones. B replaces the middle bits. Motion makes the low bits lie.",
   },
 };
 

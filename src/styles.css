@@ -1370,6 +1370,9 @@ body {
 .print-controls {
   --organ-color: var(--color-pink);
 }
+.bit-splice-controls {
+  --organ-color: var(--color-cyan);
+}
 
 .mode-organ-title {
   display: grid;

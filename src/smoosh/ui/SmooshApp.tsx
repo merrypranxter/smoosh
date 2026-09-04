@@ -71,6 +71,7 @@ import {
 import { useSmoosh } from "@/smoosh/state/store";
 import {
   COLOR_EFFECT_META,
+  DEFAULT_BIT_PLANE,
   DEFAULT_BINARY_PRINT,
   DEFAULT_COLLISION,
   DEFAULT_INFECTION,
@@ -104,6 +105,7 @@ const MODES: SmooshMode[] = [
   "labyrinth",
   "vortex",
   "print",
+  "bitsplice",
 ];
 
 const COLOR_EFFECTS: ColorEffect[] = [
@@ -1410,6 +1412,7 @@ export function SmooshApp() {
           {store.mode === "labyrinth" && <FeedbackLabyrinthControls />}
           {store.mode === "vortex" && <CurlVortexControls />}
           {store.mode === "print" && <BinaryPrintControls />}
+          {store.mode === "bitsplice" && <BitPlaneControls />}
 
           <ProcessionStrip
             steps={processionSteps}
@@ -3001,6 +3004,51 @@ function BinaryPrintControls() {
             value={effect[key]}
             onChange={(event) =>
               store.setBinaryPrint({ [key]: Number(event.target.value) })
+            }
+          />
+        </label>
+      ))}
+    </section>
+  );
+}
+
+function BitPlaneControls() {
+  const store = useSmoosh();
+  const effect = store.bitPlane;
+  return (
+    <section
+      className="bit-splice-controls mode-organ-controls"
+      aria-label="Bit-Plane Cross-Splice controls"
+    >
+      <div className="mode-organ-title">
+        <strong>BINARY GRAFT</strong>
+        <button
+          type="button"
+          onClick={() => store.setBitPlane(DEFAULT_BIT_PLANE)}
+        >
+          SWEET SPOT
+        </button>
+      </div>
+      {(
+        [
+          ["BONES", "bones"],
+          ["GRAFT", "graft"],
+          ["XOR FEVER", "parity"],
+        ] as const
+      ).map(([label, key]) => (
+        <label className="mode-organ-knob" key={key}>
+          <span>
+            {label} <b>{Math.round(effect[key] * 100)}%</b>
+          </span>
+          <input
+            aria-label={`Bit-Plane Cross-Splice ${label.toLowerCase()}`}
+            type="range"
+            min={0}
+            max={1}
+            step={0.01}
+            value={effect[key]}
+            onChange={(event) =>
+              store.setBitPlane({ [key]: Number(event.target.value) })
             }
           />
         </label>

@@ -224,6 +224,10 @@ uniform int uPrintMode;
 uniform float uPrintCrush;
 uniform float uPrintDotScale;
 uniform float uPrintMigration;
+uniform int uBitSpliceMode;
+uniform float uBitBones;
+uniform float uBitGraft;
+uniform float uBitParity;
 ${FLOW_COMMON}
 ${COLOR_COMMON}
 
@@ -483,6 +487,77 @@ void main() {
     vec3 color = mix(printed, oldPrint, trail);
     color = mix(color, printed, clamp(uRefresh * (1.0 - motionMask * 0.72) + uBleed * 0.22, 0.0, 1.0));
     fragColor = vec4(clamp(color, 0.0, 1.0), 1.0);
+    return;
+  }
+
+  if (uBitSpliceMode == 1) {
+    float motionEnergy = length(flow);
+    float motionMask = smoothstep(0.001, 0.036, motionEnergy);
+    vec2 donorUv = clamp(
+      vUv - flow * mix(0.18, 1.85, uBitGraft),
+      vec2(0.0),
+      vec2(1.0)
+    );
+    vec2 memoryUv = clamp(
+      vUv - flow * mix(0.35, 2.25, uBitParity),
+      vec2(0.0),
+      vec2(1.0)
+    );
+    vec3 freshBody = colorFeedSample(uSource, vUv, uTexel);
+    vec3 donorBody = colorFeedSample(uDonor, donorUv, uTexel);
+    vec3 oldBody = texture(uFeedback, memoryUv).rgb * uPersist;
+    float memoryAmount = motionMask * mix(0.12, 0.62, uBitParity);
+    vec3 body = mix(freshBody, oldBody, memoryAmount);
+
+    uvec3 bodyBytes = uvec3(clamp(floor(body * 255.0 + 0.5), vec3(0.0), vec3(255.0)));
+    uvec3 donorBytes = uvec3(clamp(floor(donorBody * 255.0 + 0.5), vec3(0.0), vec3(255.0)));
+    uvec3 bodyHigh = bodyBytes & uvec3(192u);
+    uvec3 donorHigh = donorBytes & uvec3(192u);
+    uvec3 bodyMid = bodyBytes & uvec3(60u);
+    uvec3 donorMid = donorBytes & uvec3(60u);
+    uvec3 bodyLow = bodyBytes & uvec3(3u);
+    uvec3 parityLow = (bodyBytes ^ donorBytes) & uvec3(3u);
+
+    vec2 bitCell = floor(gl_FragCoord.xy / mix(12.0, 2.0, uBitGraft));
+    vec3 boneGate = step(
+      vec3(1.0 - uBitBones),
+      vec3(
+        macroHash(bitCell + vec2(3.0, 19.0)),
+        macroHash(bitCell + vec2(29.0, 7.0)),
+        macroHash(bitCell + vec2(13.0, 37.0))
+      )
+    );
+    vec3 graftGate = step(
+      vec3(1.0 - uBitGraft * mix(0.55, 1.0, motionMask)),
+      vec3(
+        macroHash(bitCell + vec2(47.0, 5.0)),
+        macroHash(bitCell + vec2(11.0, 53.0)),
+        macroHash(bitCell + vec2(31.0, 23.0))
+      )
+    );
+    vec3 parityGate = step(
+      vec3(1.0 - uBitParity),
+      vec3(
+        macroHash(bitCell + vec2(61.0, 17.0)),
+        macroHash(bitCell + vec2(41.0, 43.0)),
+        macroHash(bitCell + vec2(2.0, 71.0))
+      )
+    );
+
+    uvec3 chosenHigh = uvec3(mix(vec3(donorHigh), vec3(bodyHigh), boneGate));
+    uvec3 chosenMid = uvec3(mix(vec3(bodyMid), vec3(donorMid), graftGate));
+    uvec3 chosenLow = uvec3(mix(vec3(bodyLow), vec3(parityLow), parityGate));
+    uvec3 splicedBytes = chosenHigh | chosenMid | chosenLow;
+    vec3 spliced = vec3(splicedBytes) / 255.0;
+    vec3 chromaLie = vec3(1.0 - spliced.b, spliced.r, 1.0 - spliced.g);
+    spliced = mix(spliced, chromaLie, motionMask * uBitParity * 0.42);
+    spliced = mix(spliced, oldBody, motionMask * uBitParity * 0.18);
+    spliced = mix(
+      spliced,
+      freshBody,
+      clamp(uRefresh * (1.0 - motionMask * 0.74) + uBleed * 0.18, 0.0, 1.0)
+    );
+    fragColor = vec4(clamp(spliced, 0.0, 1.0), 1.0);
     return;
   }
 
