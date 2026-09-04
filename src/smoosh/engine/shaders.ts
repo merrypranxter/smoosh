@@ -236,6 +236,10 @@ uniform int uGravityMode;
 uniform float uWellMass;
 uniform float uWellReach;
 uniform float uWellOrbit;
+uniform int uContourMode;
+uniform float uEdgeGrip;
+uniform float uContourRun;
+uniform float uContourBleed;
 ${FLOW_COMMON}
 ${COLOR_COMMON}
 
@@ -686,6 +690,65 @@ void main() {
       clamp(uRefresh * (1.0 - gravityGate * 0.84) + uBleed * 0.22, 0.0, 1.0)
     );
     fragColor = vec4(clamp(collapsed, 0.0, 1.0), 1.0);
+    return;
+  }
+
+  if (uContourMode == 1) {
+    vec2 t = uTexel;
+    float lTL = luma(texture(uSource, vUv + vec2(-t.x, -t.y)).rgb);
+    float lT = luma(texture(uSource, vUv + vec2(0.0, -t.y)).rgb);
+    float lTR = luma(texture(uSource, vUv + vec2(t.x, -t.y)).rgb);
+    float lL = luma(texture(uSource, vUv + vec2(-t.x, 0.0)).rgb);
+    float lR = luma(texture(uSource, vUv + vec2(t.x, 0.0)).rgb);
+    float lBL = luma(texture(uSource, vUv + vec2(-t.x, t.y)).rgb);
+    float lB = luma(texture(uSource, vUv + vec2(0.0, t.y)).rgb);
+    float lBR = luma(texture(uSource, vUv + vec2(t.x, t.y)).rgb);
+
+    vec2 gradient = vec2(
+      (lTR + 2.0 * lR + lBR) - (lTL + 2.0 * lL + lBL),
+      (lBL + 2.0 * lB + lBR) - (lTL + 2.0 * lT + lTR)
+    );
+    float edgeStrength = length(gradient);
+    float edgeMask = smoothstep(0.015, 0.12, edgeStrength);
+
+    vec2 tangent = vec2(-gradient.y, gradient.x);
+    float tangentLen = length(tangent);
+    vec2 tangentDir = tangentLen > 1.0e-6 ? tangent / tangentLen : vec2(1.0, 0.0);
+
+    vec2 guidedFlow = dot(flow, tangentDir) * tangentDir;
+    vec2 effectiveFlow = mix(flow, guidedFlow, uEdgeGrip * edgeMask);
+    float travelEnergy = length(effectiveFlow);
+    vec2 travelDir = travelEnergy > 1.0e-6 ? effectiveFlow / travelEnergy : tangentDir;
+
+    float travelPx = mix(2.0, 58.0, uContourRun);
+    travelPx *= 1.0 + uInjectBoost * 1.3;
+    float travelGate = edgeMask * clamp(travelEnergy * 30.0, 0.0, 1.0);
+
+    vec2 freshUv = clamp(
+      vUv - travelDir * uTexel * travelPx,
+      vec2(0.0),
+      vec2(1.0)
+    );
+    vec3 freshInk = colorFeedSample(uSource, freshUv, uTexel);
+
+    vec2 oldUv = clamp(
+      vUv - travelDir * uTexel * travelPx * 1.7,
+      vec2(0.0),
+      vec2(1.0)
+    );
+    vec3 oldInk = texture(uFeedback, oldUv).rgb * uPersist;
+
+    float bleedAmount = clamp(uContourBleed + uInjectBoost * 0.5, 0.0, 1.0);
+    vec3 ink = mix(freshInk, oldInk, bleedAmount * edgeMask);
+
+    vec3 cleanBody = colorFeedSample(uSource, vUv, uTexel);
+    vec3 color = mix(cleanBody, ink, travelGate);
+    color = mix(
+      color,
+      cleanBody,
+      clamp(uRefresh * (1.0 - travelGate * 0.8) + uBleed * 0.2, 0.0, 1.0)
+    );
+    fragColor = vec4(clamp(color, 0.0, 1.0), 1.0);
     return;
   }
 

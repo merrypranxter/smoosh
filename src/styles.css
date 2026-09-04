@@ -1381,6 +1381,10 @@ body {
   --organ-color: var(--color-pink);
 }
 
+.contour-controls {
+  --organ-color: var(--color-cyan);
+}
+
 .mode-organ-title {
   display: grid;
   gap: 4px;

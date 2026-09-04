@@ -5,6 +5,7 @@ import {
   DEFAULT_BINARY_PRINT,
   DEFAULT_COLOR,
   DEFAULT_COLLISION,
+  DEFAULT_CONTOUR_CURRENT,
   DEFAULT_FLOW_SORT,
   DEFAULT_GRAVITY_WELLS,
   DEFAULT_INFECTION,
@@ -21,6 +22,7 @@ import {
   type BinaryPrintSettings,
   type ColorSettings,
   type CollisionSettings,
+  type ContourSettings,
   type FlowSortSettings,
   type GravityWellSettings,
   type InfectionSettings,
@@ -78,6 +80,7 @@ export interface SmooshStore {
   bitPlane: BitPlaneSettings;
   flowSort: FlowSortSettings;
   gravityWells: GravityWellSettings;
+  contour: ContourSettings;
   setParam: <K extends keyof EngineParams>(
     key: K,
     value: EngineParams[K],
@@ -111,6 +114,7 @@ export interface SmooshStore {
   setBitPlane: (patch: Partial<BitPlaneSettings>) => void;
   setFlowSort: (patch: Partial<FlowSortSettings>) => void;
   setGravityWells: (patch: Partial<GravityWellSettings>) => void;
+  setContour: (patch: Partial<ContourSettings>) => void;
   resetParams: () => void;
   randomizeParams: () => void;
 }
@@ -180,6 +184,7 @@ export const useSmoosh = create<SmooshStore>((set, get) => ({
   bitPlane: { ...DEFAULT_BIT_PLANE },
   flowSort: { ...DEFAULT_FLOW_SORT },
   gravityWells: { ...DEFAULT_GRAVITY_WELLS },
+  contour: { ...DEFAULT_CONTOUR_CURRENT },
   setParam: (key, value) =>
     set((s) => ({ params: { ...s.params, [key]: value } })),
   setParams: (p) => set({ params: { ...DEFAULT_PARAMS, ...p } }),
@@ -403,6 +408,19 @@ export const useSmoosh = create<SmooshStore>((set, get) => ({
           1,
           Math.max(0, patch.orbit ?? state.gravityWells.orbit),
         ),
+      },
+    })),
+  setContour: (patch) =>
+    set((state) => ({
+      contour: {
+        ...state.contour,
+        ...patch,
+        edgeGrip: Math.min(
+          1,
+          Math.max(0, patch.edgeGrip ?? state.contour.edgeGrip),
+        ),
+        run: Math.min(1, Math.max(0, patch.run ?? state.contour.run)),
+        bleed: Math.min(1, Math.max(0, patch.bleed ?? state.contour.bleed)),
       },
     })),
   resetParams: () => set({ params: { ...DEFAULT_PARAMS } }),

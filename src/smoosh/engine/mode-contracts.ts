@@ -43,7 +43,8 @@ export function routeModeSources(
     mode === "print" ||
     mode === "bitsplice" ||
     mode === "flowsort" ||
-    mode === "gravity"
+    mode === "gravity" ||
+    mode === "contour"
   ) {
     return {
       pixels: solo,
@@ -93,7 +94,8 @@ export function needsSourceForMode(
     mode === "print" ||
     mode === "bitsplice" ||
     mode === "flowsort" ||
-    mode === "gravity"
+    mode === "gravity" ||
+    mode === "contour"
   ) {
     return !hasA && !hasB;
   }
