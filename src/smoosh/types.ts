@@ -7,7 +7,8 @@ export type SmooshMode =
   | "hold"
   | "chroma"
   | "macro"
-  | "slice";
+  | "slice"
+  | "collision";
 
 export type QualityLevel = "performance" | "balanced" | "high";
 
@@ -118,6 +119,18 @@ export const DEFAULT_SLICE: SliceSettings = {
   orientation: "vertical",
 };
 
+export interface CollisionSettings {
+  impact: number;
+  opposition: number;
+  shock: number;
+}
+
+export const DEFAULT_COLLISION: CollisionSettings = {
+  impact: 0.78,
+  opposition: 0.68,
+  shock: 0.55,
+};
+
 export const DEFAULT_SYMMETRY: SymmetrySettings = {
   enabled: false,
   axis: 0.5,
@@ -209,6 +222,10 @@ export const MODE_META: Record<SmooshMode, { label: string; hint: string }> = {
   slice: {
     label: "TIME-SLICE / SLIT-SCAN",
     hint: "Each strip lives at a different moment. Drag time sideways.",
+  },
+  collision: {
+    label: "MOTION COLLISION",
+    hint: "A's motion and B's motion crash head-on. The impact becomes the wind.",
   },
 };
 

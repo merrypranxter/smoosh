@@ -179,6 +179,7 @@ uniform sampler2D uFeedback;
 uniform sampler2D uSource;
 uniform sampler2D uFlow;
 uniform sampler2D uDonor;
+uniform sampler2D uFlowOther;
 uniform vec2 uTexel;
 uniform float uRefresh;
 uniform float uPersist;
@@ -201,6 +202,11 @@ uniform float uSliceDrift;
 uniform float uSliceSpeed;
 uniform float uSliceTime;
 uniform int uSliceOrientation;
+uniform int uCollisionMode;
+uniform float uCollisionImpact;
+uniform float uCollisionOpposition;
+uniform float uCollisionShock;
+uniform int uCollisionSolo;
 ${FLOW_COMMON}
 ${COLOR_COMMON}
 
@@ -275,6 +281,46 @@ void main() {
     float seam = smoothstep(0.86, 0.99, fract(axis / bandUv));
     color *= 1.0 - seam * uSliceDrift * 0.12;
     color = mix(color, src, uBleed * 0.32);
+    fragColor = vec4(clamp(color, 0.0, 1.0), 1.0);
+    return;
+  }
+
+  if (uCollisionMode == 1) {
+    vec2 windA = decodeFlow(texture(uFlowOther, vUv).xy) * uGain;
+    vec2 windB = flow;
+    if (uCollisionSolo == 1) {
+      windA = vec2(-windB.y, windB.x) * 0.88;
+    }
+    vec2 cooperative = windB + windA;
+    vec2 opposed = windB - windA;
+    vec2 crash = mix(cooperative, opposed, uCollisionOpposition);
+    float disagreement = length(windB - windA);
+    float headOn = 0.0;
+    float lenA = length(windA);
+    float lenB = length(windB);
+    if (lenA > 1.0e-6 && lenB > 1.0e-6) {
+      headOn = clamp(dot(windA / lenA, -windB / lenB), 0.0, 1.0);
+    }
+    float shock = smoothstep(0.001, 0.055, disagreement) *
+      mix(0.35, 1.0, headOn) * uCollisionShock;
+    vec2 normal = vec2(-crash.y, crash.x);
+    float normalLength = length(normal);
+    normal = normalLength > 1.0e-6 ? normal / normalLength : vec2(1.0, 0.0);
+    vec2 cell = floor(vUv / (uTexel * mix(18.0, 5.0, uCollisionShock)));
+    float fracture = macroHash(cell + floor(disagreement * 900.0)) - 0.5;
+    vec2 shrapnel = normal * fracture * shock * 0.13;
+    vec2 impactFlow = crash * mix(0.55, 2.5, uCollisionImpact);
+    vec2 leftUv = clamp(vUv - impactFlow - shrapnel, vec2(0.0), vec2(1.0));
+    vec2 rightUv = clamp(vUv + impactFlow * 0.42 + shrapnel, vec2(0.0), vec2(1.0));
+    vec3 leftHit = texture(uFeedback, leftUv).rgb;
+    vec3 rightHit = texture(uFeedback, rightUv).rgb;
+    float split = step(0.5, macroHash(cell + 41.0));
+    vec3 collided = mix(leftHit, rightHit, split * shock) * uPersist;
+    vec3 src = colorFeedSample(uSource, vUv, uTexel);
+    float inj = clamp(uRefresh * (1.0 - shock * 0.72) + uInjectBoost * 0.18, 0.0, 1.0);
+    vec3 color = mix(collided, src, inj);
+    color += vec3(0.08, 0.025, 0.11) * shock * uCollisionImpact;
+    color = mix(color, src, uBleed * 0.38);
     fragColor = vec4(clamp(color, 0.0, 1.0), 1.0);
     return;
   }

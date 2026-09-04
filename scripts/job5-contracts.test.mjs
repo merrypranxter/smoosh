@@ -42,7 +42,7 @@ test("the recording sheet keeps a real iPhone save action above the preview", ()
 
 test("Job 5 organs remain while new visual modes join the rail", () => {
   const modes = ui.match(/const MODES:[\s\S]*?\];/)?.[0] ?? "";
-  assert.equal([...modes.matchAll(/^\s*"[a-z]+",$/gm)].length, 9);
+  assert.equal([...modes.matchAll(/^\s*"[a-z]+",$/gm)].length, 10);
   for (const action of ["SNAP TO A", "COMPARE", "CAM", "SEEDS"]) {
     assert.match(ui, new RegExp(action));
   }

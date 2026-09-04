@@ -71,6 +71,7 @@ import {
 import { useSmoosh } from "@/smoosh/state/store";
 import {
   COLOR_EFFECT_META,
+  DEFAULT_COLLISION,
   DEFAULT_MACRO,
   DEFAULT_SLICE,
   MODE_META,
@@ -94,6 +95,7 @@ const MODES: SmooshMode[] = [
   "chroma",
   "macro",
   "slice",
+  "collision",
 ];
 
 const COLOR_EFFECTS: ColorEffect[] = [
@@ -1395,6 +1397,7 @@ export function SmooshApp() {
 
           {store.mode === "macro" && <MacroblockControls />}
           {store.mode === "slice" && <TimeSliceControls />}
+          {store.mode === "collision" && <MotionCollisionControls />}
 
           <ProcessionStrip
             steps={processionSteps}
@@ -2713,6 +2716,77 @@ function TimeSliceControls() {
           value={slice.scanSpeed}
           onChange={(event) =>
             store.setSlice({ scanSpeed: Number(event.target.value) })
+          }
+        />
+      </label>
+    </section>
+  );
+}
+
+function MotionCollisionControls() {
+  const store = useSmoosh();
+  const collision = store.collision;
+
+  return (
+    <section
+      className="collision-controls"
+      aria-label="Motion Collision controls"
+    >
+      <div className="collision-title">
+        <strong>CRASH TEST</strong>
+        <button
+          type="button"
+          onClick={() => store.setCollision(DEFAULT_COLLISION)}
+          aria-label="Reset Motion Collision controls to sweet spot"
+        >
+          SWEET SPOT
+        </button>
+      </div>
+      <label className="collision-knob">
+        <span>
+          IMPACT <b>{Math.round(collision.impact * 100)}%</b>
+        </span>
+        <input
+          aria-label="Motion Collision impact"
+          type="range"
+          min={0}
+          max={1}
+          step={0.01}
+          value={collision.impact}
+          onChange={(event) =>
+            store.setCollision({ impact: Number(event.target.value) })
+          }
+        />
+      </label>
+      <label className="collision-knob">
+        <span>
+          OPPOSITION <b>{Math.round(collision.opposition * 100)}%</b>
+        </span>
+        <input
+          aria-label="Motion Collision opposition"
+          type="range"
+          min={0}
+          max={1}
+          step={0.01}
+          value={collision.opposition}
+          onChange={(event) =>
+            store.setCollision({ opposition: Number(event.target.value) })
+          }
+        />
+      </label>
+      <label className="collision-knob">
+        <span>
+          SHOCK <b>{Math.round(collision.shock * 100)}%</b>
+        </span>
+        <input
+          aria-label="Motion Collision shock"
+          type="range"
+          min={0}
+          max={1}
+          step={0.01}
+          value={collision.shock}
+          onChange={(event) =>
+            store.setCollision({ shock: Number(event.target.value) })
           }
         />
       </label>

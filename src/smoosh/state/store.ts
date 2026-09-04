@@ -2,6 +2,7 @@ import { create } from "zustand";
 import {
   DEFAULT_PARAMS,
   DEFAULT_COLOR,
+  DEFAULT_COLLISION,
   DEFAULT_MACRO,
   DEFAULT_SLICE,
   DEFAULT_SYMMETRY,
@@ -10,6 +11,7 @@ import {
   type AudioRoute,
   type BufferPattern,
   type ColorSettings,
+  type CollisionSettings,
   type EngineParams,
   type MacroSettings,
   type SliceSettings,
@@ -54,6 +56,7 @@ export interface SmooshStore {
   color: ColorSettings;
   macro: MacroSettings;
   slice: SliceSettings;
+  collision: CollisionSettings;
   setParam: <K extends keyof EngineParams>(
     key: K,
     value: EngineParams[K],
@@ -79,6 +82,7 @@ export interface SmooshStore {
   setColor: (patch: Partial<ColorSettings>) => void;
   setMacro: (patch: Partial<MacroSettings>) => void;
   setSlice: (patch: Partial<SliceSettings>) => void;
+  setCollision: (patch: Partial<CollisionSettings>) => void;
   resetParams: () => void;
   randomizeParams: () => void;
 }
@@ -140,6 +144,7 @@ export const useSmoosh = create<SmooshStore>((set, get) => ({
   color: { ...DEFAULT_COLOR },
   macro: { ...DEFAULT_MACRO },
   slice: { ...DEFAULT_SLICE },
+  collision: { ...DEFAULT_COLLISION },
   setParam: (key, value) =>
     set((s) => ({ params: { ...s.params, [key]: value } })),
   setParams: (p) => set({ params: { ...DEFAULT_PARAMS, ...p } }),
@@ -250,6 +255,22 @@ export const useSmoosh = create<SmooshStore>((set, get) => ({
           3,
           Math.max(0.1, patch.scanSpeed ?? state.slice.scanSpeed),
         ),
+      },
+    })),
+  setCollision: (patch) =>
+    set((state) => ({
+      collision: {
+        ...state.collision,
+        ...patch,
+        impact: Math.min(
+          1,
+          Math.max(0, patch.impact ?? state.collision.impact),
+        ),
+        opposition: Math.min(
+          1,
+          Math.max(0, patch.opposition ?? state.collision.opposition),
+        ),
+        shock: Math.min(1, Math.max(0, patch.shock ?? state.collision.shock)),
       },
     })),
   resetParams: () => set({ params: { ...DEFAULT_PARAMS } }),

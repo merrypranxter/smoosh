@@ -24,6 +24,7 @@ const MODES = new Set<SmooshMode>([
   "chroma",
   "macro",
   "slice",
+  "collision",
 ]);
 
 export function defaultProcession(): ProcessionStep[] {

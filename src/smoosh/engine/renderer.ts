@@ -1,6 +1,7 @@
 import type {
   ColorEffect,
   ColorSettings,
+  CollisionSettings,
   EngineParams,
   MacroSettings,
   QualityLevel,
@@ -50,6 +51,8 @@ export interface RenderInputs {
   macroTime: number;
   slice: SliceSettings;
   sliceTime: number;
+  collision: CollisionSettings;
+  collisionSolo: boolean;
 }
 
 export interface PrimeInputs {
@@ -237,6 +240,12 @@ export class SmooshRenderer {
           "uSliceSpeed",
           "uSliceTime",
           "uSliceOrientation",
+          "uFlowOther",
+          "uCollisionMode",
+          "uCollisionImpact",
+          "uCollisionOpposition",
+          "uCollisionShock",
+          "uCollisionSolo",
           ...COLOR_UNIFORMS,
         ]),
       };
@@ -597,7 +606,10 @@ export class SmooshRenderer {
       this.motionFlip = !this.motionFlip;
     }
 
-    const needAFlow = input.mode === "cross" || input.mode === "self";
+    const needAFlow =
+      input.mode === "cross" ||
+      input.mode === "self" ||
+      input.mode === "collision";
     if (needAFlow && mediaReady(pixelsSrc) && !input.freezePixels) {
       const write = this.motionAFlip ? this.motionACurr : this.motionAPrev;
       const pixelsFrame = input.pixelsStill
@@ -669,6 +681,10 @@ export class SmooshRenderer {
       input.mode === "slice",
       input.slice,
       input.sliceTime,
+      input.mode === "collision",
+      this.flowA?.read().tex ?? flowForA,
+      input.collision,
+      input.collisionSolo,
       input.color,
     );
 
@@ -689,6 +705,10 @@ export class SmooshRenderer {
         false,
         input.slice,
         input.sliceTime,
+        false,
+        this.flowB.read().tex,
+        input.collision,
+        false,
         input.color,
       );
       this.mixFeedbacks(input.params.crossBalance);
@@ -772,6 +792,10 @@ export class SmooshRenderer {
     sliceMode: boolean,
     slice: SliceSettings,
     sliceTime: number,
+    collisionMode: boolean,
+    otherFlow: WebGLTexture,
+    collision: CollisionSettings,
+    collisionSolo: boolean,
     color: ColorSettings,
   ): void {
     const gl = this.gl;
@@ -792,6 +816,9 @@ export class SmooshRenderer {
     gl.activeTexture(gl.TEXTURE3);
     gl.bindTexture(gl.TEXTURE_2D, donor ?? source);
     gl.uniform1i(this.moshProg.loc.uDonor, 3);
+    gl.activeTexture(gl.TEXTURE4);
+    gl.bindTexture(gl.TEXTURE_2D, otherFlow);
+    gl.uniform1i(this.moshProg.loc.uFlowOther, 4);
     gl.uniform2f(this.moshProg.loc.uTexel, 1 / this.w, 1 / this.h);
     gl.uniform1f(this.moshProg.loc.uRefresh, params.sourceRefresh);
     gl.uniform1f(this.moshProg.loc.uPersist, params.persistence);
@@ -817,6 +844,11 @@ export class SmooshRenderer {
       this.moshProg.loc.uSliceOrientation,
       slice.orientation === "vertical" ? 0 : 1,
     );
+    gl.uniform1i(this.moshProg.loc.uCollisionMode, collisionMode ? 1 : 0);
+    gl.uniform1f(this.moshProg.loc.uCollisionImpact, collision.impact);
+    gl.uniform1f(this.moshProg.loc.uCollisionOpposition, collision.opposition);
+    gl.uniform1f(this.moshProg.loc.uCollisionShock, collision.shock);
+    gl.uniform1i(this.moshProg.loc.uCollisionSolo, collisionSolo ? 1 : 0);
     this.setColorUniforms(
       this.moshProg,
       color,

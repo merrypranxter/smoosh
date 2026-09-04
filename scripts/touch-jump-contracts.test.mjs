@@ -17,7 +17,7 @@ test("Touch Jump routes A, B, both, and the output loop without adding a mosh mo
     assert.match(ui, new RegExp(label.replace("·", "·")));
   }
   const modes = ui.match(/const MODES:[\s\S]*?\];/)?.[0] ?? "";
-  assert.equal([...modes.matchAll(/^\s*"[a-z]+",$/gm)].length, 9);
+  assert.equal([...modes.matchAll(/^\s*"[a-z]+",$/gm)].length, 10);
 });
 
 test("the preview maps backward and forward zones to the promised frame jumps", () => {

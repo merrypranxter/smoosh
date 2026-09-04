@@ -316,6 +316,8 @@ export class SmooshEngine {
       macroTime: this.macroClock,
       slice: s.slice,
       sliceTime: this.sliceClock,
+      collision: s.collision,
+      collisionSolo: route.pixels === route.motion,
     });
 
     const outputW = 240;

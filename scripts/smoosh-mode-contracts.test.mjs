@@ -18,7 +18,7 @@ import {
 } from "../src/smoosh/procession.ts";
 import { MOSH_FRAG } from "../src/smoosh/engine/shaders.ts";
 
-test("the mode oracle uses exactly nine contracts", () => {
+test("the mode oracle uses exactly ten contracts", () => {
   assert.deepEqual(
     Object.fromEntries(
       Object.entries(MODE_META).map(([mode, meta]) => [mode, meta.hint]),
@@ -35,9 +35,11 @@ test("the mode oracle uses exactly nine contracts", () => {
       macro:
         "A steals rectangular chunks from B and its own past. The blocks remember.",
       slice: "Each strip lives at a different moment. Drag time sideways.",
+      collision:
+        "A's motion and B's motion crash head-on. The impact becomes the wind.",
     },
   );
-  assert.equal(Object.keys(MODE_META).length, 9);
+  assert.equal(Object.keys(MODE_META).length, 10);
 });
 
 test("moving transfer and cross route A pixels against B motion", () => {
@@ -92,6 +94,7 @@ test("source requirements match the one-source fallbacks", () => {
   assert.equal(needsSourceForMode("chroma", false, true, false), false);
   assert.equal(needsSourceForMode("macro", true, false, false), false);
   assert.equal(needsSourceForMode("slice", false, true, false), false);
+  assert.equal(needsSourceForMode("collision", true, false, false), false);
   assert.equal(needsSourceForMode("hold", false, false, true), true);
 });
 
@@ -137,6 +140,18 @@ test("one-source modes prefer B motion but fall back to a solo source", () => {
     motion: "b",
     pixelsB: "b",
     effectiveMode: "slice",
+  });
+  assert.deepEqual(routeModeSources("collision", true, true), {
+    pixels: "a",
+    motion: "b",
+    pixelsB: "b",
+    effectiveMode: "collision",
+  });
+  assert.deepEqual(routeModeSources("collision", true, false), {
+    pixels: "a",
+    motion: "a",
+    pixelsB: "a",
+    effectiveMode: "collision",
   });
 });
 
@@ -185,12 +200,13 @@ test("procession restores added modes without accepting unknown modes", () => {
       { id: "chroma", mode: "chroma", duration: 3 },
       { id: "macro", mode: "macro", duration: 2.5 },
       { id: "slice", mode: "slice", duration: 4.5 },
+      { id: "collision", mode: "collision", duration: 3.5 },
       { id: "nope", mode: "dice", duration: 4 },
     ],
   });
   assert.deepEqual(
     restored?.steps.map((step) => step.mode),
-    ["hold", "chroma", "macro", "slice"],
+    ["hold", "chroma", "macro", "slice", "collision"],
   );
 });
 
@@ -221,6 +237,7 @@ test("procession mode changes preserve a primed feedback buffer", () => {
   assert.equal(shouldPrimeForMode("chroma", true, true, true, true), false);
   assert.equal(shouldPrimeForMode("macro", true, true, true, true), false);
   assert.equal(shouldPrimeForMode("slice", true, true, true, true), false);
+  assert.equal(shouldPrimeForMode("collision", true, true, true, true), false);
   assert.equal(shouldPrimeForMode("transfer", true, false, true, true), true);
   assert.equal(shouldPrimeForMode("self", false, true, true, true), true);
 });

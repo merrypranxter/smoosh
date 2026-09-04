@@ -35,7 +35,8 @@ export function routeModeSources(
     mode === "hold" ||
     mode === "chroma" ||
     mode === "macro" ||
-    mode === "slice"
+    mode === "slice" ||
+    mode === "collision"
   ) {
     return {
       pixels: solo,
@@ -77,7 +78,8 @@ export function needsSourceForMode(
     mode === "hold" ||
     mode === "chroma" ||
     mode === "macro" ||
-    mode === "slice"
+    mode === "slice" ||
+    mode === "collision"
   ) {
     return !hasA && !hasB;
   }
