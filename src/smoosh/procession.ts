@@ -25,6 +25,7 @@ const MODES = new Set<SmooshMode>([
   "macro",
   "slice",
   "collision",
+  "infection",
 ]);
 
 export function defaultProcession(): ProcessionStep[] {

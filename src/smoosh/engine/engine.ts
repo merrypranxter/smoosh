@@ -318,6 +318,7 @@ export class SmooshEngine {
       sliceTime: this.sliceClock,
       collision: s.collision,
       collisionSolo: route.pixels === route.motion,
+      infection: s.infection,
     });
 
     const outputW = 240;

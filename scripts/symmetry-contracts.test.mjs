@@ -16,7 +16,7 @@ test("symmetry remains a recorded modifier while the mode rail grows", () => {
   assert.match(renderer, /uSymmetryEnabled, symmetry\.enabled \? 1 : 0/);
   assert.match(renderer, /uSymmetryEnabled, 0/);
   const modes = ui.match(/const MODES:[\s\S]*?\];/)?.[0] ?? "";
-  assert.equal([...modes.matchAll(/^\s*"[a-z]+",$/gm)].length, 10);
+  assert.equal([...modes.matchAll(/^\s*"[a-z]+",$/gm)].length, 11);
 });
 
 test("the bilateral shader can reflect from either movable side", () => {

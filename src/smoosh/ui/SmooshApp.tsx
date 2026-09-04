@@ -72,6 +72,7 @@ import { useSmoosh } from "@/smoosh/state/store";
 import {
   COLOR_EFFECT_META,
   DEFAULT_COLLISION,
+  DEFAULT_INFECTION,
   DEFAULT_MACRO,
   DEFAULT_SLICE,
   MODE_META,
@@ -96,6 +97,7 @@ const MODES: SmooshMode[] = [
   "macro",
   "slice",
   "collision",
+  "infection",
 ];
 
 const COLOR_EFFECTS: ColorEffect[] = [
@@ -1398,6 +1400,7 @@ export function SmooshApp() {
           {store.mode === "macro" && <MacroblockControls />}
           {store.mode === "slice" && <TimeSliceControls />}
           {store.mode === "collision" && <MotionCollisionControls />}
+          {store.mode === "infection" && <RegionalInfectionControls />}
 
           <ProcessionStrip
             steps={processionSteps}
@@ -2787,6 +2790,77 @@ function MotionCollisionControls() {
           value={collision.shock}
           onChange={(event) =>
             store.setCollision({ shock: Number(event.target.value) })
+          }
+        />
+      </label>
+    </section>
+  );
+}
+
+function RegionalInfectionControls() {
+  const store = useSmoosh();
+  const infection = store.infection;
+
+  return (
+    <section
+      className="infection-controls"
+      aria-label="Regional Infection controls"
+    >
+      <div className="infection-title">
+        <strong>OPEN WOUND</strong>
+        <button
+          type="button"
+          onClick={() => store.setInfection(DEFAULT_INFECTION)}
+          aria-label="Reset Regional Infection controls to sweet spot"
+        >
+          SWEET SPOT
+        </button>
+      </div>
+      <label className="infection-knob">
+        <span>
+          TRIGGER <b>{Math.round(infection.trigger * 100)}%</b>
+        </span>
+        <input
+          aria-label="Regional Infection trigger"
+          type="range"
+          min={0}
+          max={1}
+          step={0.01}
+          value={infection.trigger}
+          onChange={(event) =>
+            store.setInfection({ trigger: Number(event.target.value) })
+          }
+        />
+      </label>
+      <label className="infection-knob">
+        <span>
+          SPREAD <b>{Math.round(infection.spread * 100)}%</b>
+        </span>
+        <input
+          aria-label="Regional Infection spread"
+          type="range"
+          min={0}
+          max={1}
+          step={0.01}
+          value={infection.spread}
+          onChange={(event) =>
+            store.setInfection({ spread: Number(event.target.value) })
+          }
+        />
+      </label>
+      <label className="infection-knob">
+        <span>
+          BITE <b>{Math.round(infection.bite * 100)}%</b>
+        </span>
+        <input
+          aria-label="Regional Infection bite"
+          type="range"
+          min={0}
+          max={1}
+          step={0.01}
+          value={infection.bite}
+          onChange={(event) =>
+            store.setInfection({ bite: Number(event.target.value) })
           }
         />
       </label>

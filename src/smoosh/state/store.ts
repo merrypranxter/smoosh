@@ -3,6 +3,7 @@ import {
   DEFAULT_PARAMS,
   DEFAULT_COLOR,
   DEFAULT_COLLISION,
+  DEFAULT_INFECTION,
   DEFAULT_MACRO,
   DEFAULT_SLICE,
   DEFAULT_SYMMETRY,
@@ -12,6 +13,7 @@ import {
   type BufferPattern,
   type ColorSettings,
   type CollisionSettings,
+  type InfectionSettings,
   type EngineParams,
   type MacroSettings,
   type SliceSettings,
@@ -57,6 +59,7 @@ export interface SmooshStore {
   macro: MacroSettings;
   slice: SliceSettings;
   collision: CollisionSettings;
+  infection: InfectionSettings;
   setParam: <K extends keyof EngineParams>(
     key: K,
     value: EngineParams[K],
@@ -83,6 +86,7 @@ export interface SmooshStore {
   setMacro: (patch: Partial<MacroSettings>) => void;
   setSlice: (patch: Partial<SliceSettings>) => void;
   setCollision: (patch: Partial<CollisionSettings>) => void;
+  setInfection: (patch: Partial<InfectionSettings>) => void;
   resetParams: () => void;
   randomizeParams: () => void;
 }
@@ -145,6 +149,7 @@ export const useSmoosh = create<SmooshStore>((set, get) => ({
   macro: { ...DEFAULT_MACRO },
   slice: { ...DEFAULT_SLICE },
   collision: { ...DEFAULT_COLLISION },
+  infection: { ...DEFAULT_INFECTION },
   setParam: (key, value) =>
     set((s) => ({ params: { ...s.params, [key]: value } })),
   setParams: (p) => set({ params: { ...DEFAULT_PARAMS, ...p } }),
@@ -271,6 +276,22 @@ export const useSmoosh = create<SmooshStore>((set, get) => ({
           Math.max(0, patch.opposition ?? state.collision.opposition),
         ),
         shock: Math.min(1, Math.max(0, patch.shock ?? state.collision.shock)),
+      },
+    })),
+  setInfection: (patch) =>
+    set((state) => ({
+      infection: {
+        ...state.infection,
+        ...patch,
+        trigger: Math.min(
+          1,
+          Math.max(0, patch.trigger ?? state.infection.trigger),
+        ),
+        spread: Math.min(
+          1,
+          Math.max(0, patch.spread ?? state.infection.spread),
+        ),
+        bite: Math.min(1, Math.max(0, patch.bite ?? state.infection.bite)),
       },
     })),
   resetParams: () => set({ params: { ...DEFAULT_PARAMS } }),

@@ -2,6 +2,7 @@ import type {
   ColorEffect,
   ColorSettings,
   CollisionSettings,
+  InfectionSettings,
   EngineParams,
   MacroSettings,
   QualityLevel,
@@ -53,6 +54,7 @@ export interface RenderInputs {
   sliceTime: number;
   collision: CollisionSettings;
   collisionSolo: boolean;
+  infection: InfectionSettings;
 }
 
 export interface PrimeInputs {
@@ -246,6 +248,10 @@ export class SmooshRenderer {
           "uCollisionOpposition",
           "uCollisionShock",
           "uCollisionSolo",
+          "uInfectionMode",
+          "uInfectionTrigger",
+          "uInfectionSpread",
+          "uInfectionBite",
           ...COLOR_UNIFORMS,
         ]),
       };
@@ -685,6 +691,8 @@ export class SmooshRenderer {
       this.flowA?.read().tex ?? flowForA,
       input.collision,
       input.collisionSolo,
+      input.mode === "infection",
+      input.infection,
       input.color,
     );
 
@@ -709,6 +717,8 @@ export class SmooshRenderer {
         this.flowB.read().tex,
         input.collision,
         false,
+        false,
+        input.infection,
         input.color,
       );
       this.mixFeedbacks(input.params.crossBalance);
@@ -796,6 +806,8 @@ export class SmooshRenderer {
     otherFlow: WebGLTexture,
     collision: CollisionSettings,
     collisionSolo: boolean,
+    infectionMode: boolean,
+    infection: InfectionSettings,
     color: ColorSettings,
   ): void {
     const gl = this.gl;
@@ -849,6 +861,10 @@ export class SmooshRenderer {
     gl.uniform1f(this.moshProg.loc.uCollisionOpposition, collision.opposition);
     gl.uniform1f(this.moshProg.loc.uCollisionShock, collision.shock);
     gl.uniform1i(this.moshProg.loc.uCollisionSolo, collisionSolo ? 1 : 0);
+    gl.uniform1i(this.moshProg.loc.uInfectionMode, infectionMode ? 1 : 0);
+    gl.uniform1f(this.moshProg.loc.uInfectionTrigger, infection.trigger);
+    gl.uniform1f(this.moshProg.loc.uInfectionSpread, infection.spread);
+    gl.uniform1f(this.moshProg.loc.uInfectionBite, infection.bite);
     this.setColorUniforms(
       this.moshProg,
       color,

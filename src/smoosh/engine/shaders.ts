@@ -207,6 +207,10 @@ uniform float uCollisionImpact;
 uniform float uCollisionOpposition;
 uniform float uCollisionShock;
 uniform int uCollisionSolo;
+uniform int uInfectionMode;
+uniform float uInfectionTrigger;
+uniform float uInfectionSpread;
+uniform float uInfectionBite;
 ${FLOW_COMMON}
 ${COLOR_COMMON}
 
@@ -321,6 +325,49 @@ void main() {
     vec3 color = mix(collided, src, inj);
     color += vec3(0.08, 0.025, 0.11) * shock * uCollisionImpact;
     color = mix(color, src, uBleed * 0.38);
+    fragColor = vec4(clamp(color, 0.0, 1.0), 1.0);
+    return;
+  }
+
+  if (uInfectionMode == 1) {
+    float reach = mix(0.004, 0.034, uInfectionSpread);
+    vec4 packedCenter = texture(uFlow, vUv);
+    float centerActivity = length(flow) * mix(0.45, 1.0, packedCenter.z);
+    vec4 packedLeft = texture(uFlow, clamp(vUv - vec2(reach, 0.0), vec2(0.0), vec2(1.0)));
+    vec4 packedRight = texture(uFlow, clamp(vUv + vec2(reach, 0.0), vec2(0.0), vec2(1.0)));
+    vec4 packedDown = texture(uFlow, clamp(vUv - vec2(0.0, reach), vec2(0.0), vec2(1.0)));
+    vec4 packedUp = texture(uFlow, clamp(vUv + vec2(0.0, reach), vec2(0.0), vec2(1.0)));
+    float activity = max(
+      centerActivity,
+      max(
+        length(decodeFlow(packedLeft.xy) * uGain) * mix(0.45, 1.0, packedLeft.z),
+        max(
+          length(decodeFlow(packedRight.xy) * uGain) * mix(0.45, 1.0, packedRight.z),
+          max(
+            length(decodeFlow(packedDown.xy) * uGain) * mix(0.45, 1.0, packedDown.z),
+            length(decodeFlow(packedUp.xy) * uGain) * mix(0.45, 1.0, packedUp.z)
+          )
+        )
+      )
+    );
+    float threshold = mix(0.0012, 0.03, uInfectionTrigger);
+    float feather = mix(0.011, 0.0035, uInfectionSpread);
+    float wound = smoothstep(threshold, threshold + feather, activity);
+    vec2 woundCell = floor(vUv / max(uTexel * mix(18.0, 6.0, uInfectionSpread), uTexel));
+    float rot = (macroHash(woundCell + floor(activity * 700.0)) - 0.5) * 1.8;
+    vec2 infectionFlow = rotate(flow, rot * uInfectionSpread);
+    float boost = 1.0 + uInjectBoost * 1.25;
+    vec2 infectedUv = clamp(
+      vUv - infectionFlow * mix(0.75, 2.65, uInfectionBite) * boost,
+      vec2(0.0),
+      vec2(1.0)
+    );
+    vec3 src = colorFeedSample(uSource, vUv, uTexel);
+    vec3 infected = texture(uFeedback, infectedUv).rgb * uPersist;
+    infected = mix(infected, src, uRefresh * 0.08);
+    wound = clamp(wound + wound * (macroHash(woundCell + 13.0) - 0.5) * 0.24, 0.0, 1.0);
+    vec3 color = mix(src, infected, wound * uInfectionBite);
+    color = mix(color, src, uBleed * (1.0 - wound));
     fragColor = vec4(clamp(color, 0.0, 1.0), 1.0);
     return;
   }

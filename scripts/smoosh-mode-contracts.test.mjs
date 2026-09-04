@@ -18,7 +18,7 @@ import {
 } from "../src/smoosh/procession.ts";
 import { MOSH_FRAG } from "../src/smoosh/engine/shaders.ts";
 
-test("the mode oracle uses exactly ten contracts", () => {
+test("the mode oracle uses exactly eleven contracts", () => {
   assert.deepEqual(
     Object.fromEntries(
       Object.entries(MODE_META).map(([mode, meta]) => [mode, meta.hint]),
@@ -37,9 +37,11 @@ test("the mode oracle uses exactly ten contracts", () => {
       slice: "Each strip lives at a different moment. Drag time sideways.",
       collision:
         "A's motion and B's motion crash head-on. The impact becomes the wind.",
+      infection:
+        "Stillness heals. Motion opens wounds where the old frame keeps breeding.",
     },
   );
-  assert.equal(Object.keys(MODE_META).length, 10);
+  assert.equal(Object.keys(MODE_META).length, 11);
 });
 
 test("moving transfer and cross route A pixels against B motion", () => {

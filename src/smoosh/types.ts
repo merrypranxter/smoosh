@@ -8,7 +8,8 @@ export type SmooshMode =
   | "chroma"
   | "macro"
   | "slice"
-  | "collision";
+  | "collision"
+  | "infection";
 
 export type QualityLevel = "performance" | "balanced" | "high";
 
@@ -131,6 +132,18 @@ export const DEFAULT_COLLISION: CollisionSettings = {
   shock: 0.55,
 };
 
+export interface InfectionSettings {
+  trigger: number;
+  spread: number;
+  bite: number;
+}
+
+export const DEFAULT_INFECTION: InfectionSettings = {
+  trigger: 0.34,
+  spread: 0.58,
+  bite: 0.82,
+};
+
 export const DEFAULT_SYMMETRY: SymmetrySettings = {
   enabled: false,
   axis: 0.5,
@@ -226,6 +239,10 @@ export const MODE_META: Record<SmooshMode, { label: string; hint: string }> = {
   collision: {
     label: "MOTION COLLISION",
     hint: "A's motion and B's motion crash head-on. The impact becomes the wind.",
+  },
+  infection: {
+    label: "REGIONAL INFECTION",
+    hint: "Stillness heals. Motion opens wounds where the old frame keeps breeding.",
   },
 };
 
