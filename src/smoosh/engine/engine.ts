@@ -196,6 +196,8 @@ export class SmooshEngine {
     this.hub.tickDemos(dt);
     this.hub.enforceInPoint("a", s.slotA.inPoint, s.slotA.loop);
     this.hub.enforceInPoint("b", s.slotB.inPoint, s.slotB.loop);
+    this.hub.resyncPlayback("a", s.playing && !s.slotA.paused);
+    this.hub.resyncPlayback("b", s.playing && !s.slotB.paused);
 
     const hasA = this.hub.a.kind !== "empty";
     const hasB = this.hub.b.kind !== "empty";

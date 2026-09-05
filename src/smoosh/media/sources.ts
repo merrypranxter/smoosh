@@ -321,6 +321,20 @@ export class MediaHub {
     }
   }
 
+  resyncPlayback(id: SlotId, shouldPlay: boolean): void {
+    if (!shouldPlay) return;
+    const slot = id === "a" ? this.a : this.b;
+    if (slot.kind !== "video" && slot.kind !== "camera") return;
+    const v = slot.video;
+    if (
+      v.paused &&
+      !v.ended &&
+      v.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA
+    ) {
+      void v.play().catch(() => undefined);
+    }
+  }
+
   enforceInPoint(id: SlotId, inPoint: number, loop: boolean): void {
     const slot = id === "a" ? this.a : this.b;
     if (slot.kind !== "video") return;
